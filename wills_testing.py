@@ -1,7 +1,9 @@
 import math
-import msvcrt
+
+# import msvcrt
 import numpy as np
 from scipy.linalg import null_space
+
 # Steps for the quadratic sieve:
 # 1. Choose a smoothness bound B. The number π(B), denoting the number of prime numbers less than B, will control both the length of the vectors and the number of vectors needed.
 # 2. Use sieving to locate π(B) + 1 numbers ai such that bi = (ai2 mod n) is B-smooth.
@@ -13,10 +15,11 @@ from scipy.linalg import null_space
 
 NUMBER_OF_VECTORS_IN_SPACE_MOD = 1
 
+
 def get_smoothness_bound(n):
     # return math.floor(math.exp(math.sqrt(math.log(n) * math.log(math.log(n))))
     return math.ceil(math.sqrt(n))
-                      
+
 
 def incriment_x(x):
     # if x > 0:
@@ -24,19 +27,21 @@ def incriment_x(x):
     # else:
     #     return -x + 1
     return x + 1
-    
+
+
 def sieve_of_eratosthenes(B):
     factor_base = []
     is_primes = [True] * (B + 1)
     for i in range(2, math.ceil(math.sqrt(B + 1))):
         if is_primes[i]:
             factor_base.append(i)
-            for j in range(i*i, B+1, i):
+            for j in range(i * i, B + 1, i):
                 is_primes[j] = False
     for i in range(math.ceil(math.sqrt(B + 1)), B + 1):
         if is_primes[i]:
             factor_base.append(i)
     return factor_base
+
 
 def is_B_smooth_trial_division(factor_base, b):
     factors = []
@@ -51,6 +56,7 @@ def is_B_smooth_trial_division(factor_base, b):
         return None
     return factors
 
+
 def calculate_a_product(ns_vector, exponent_as):
     as_product = 1
     for i, a in enumerate(ns_vector):
@@ -58,6 +64,7 @@ def calculate_a_product(ns_vector, exponent_as):
             as_product *= exponent_as[i]
             as_product = as_product % n
     return as_product
+
 
 # replace with pringalas algorithm
 def prime_to_power(p, power, n):
@@ -67,6 +74,7 @@ def prime_to_power(p, power, n):
         prime_power = prime_power % n
     return prime_power
 
+
 def calculate_primes_product(ns_vector, exponent_vectors_actual, factor_base):
     primes_product = 1
     prime_power_vector = np.zeros(len(factor_base), dtype=int)
@@ -75,7 +83,7 @@ def calculate_primes_product(ns_vector, exponent_vectors_actual, factor_base):
             prime_power_vector += exponent_vectors_actual[i]
 
     prime_power_vector = prime_power_vector // 2
-    
+
     print(f"prime_power_vector: {prime_power_vector}")
 
     for i, p in enumerate(factor_base):
@@ -83,11 +91,12 @@ def calculate_primes_product(ns_vector, exponent_vectors_actual, factor_base):
         primes_product = primes_product % n
     return primes_product
 
+
 def sieve(n):
     # Choose smoothness bound B
     # online found that B is approximately equal to exp(sqrt(log(n) * log(log(n))))
     B = get_smoothness_bound(n)
-    
+
     # Now we have B compute primes up to B using Sieve of Eratosthenes
     factor_base = sieve_of_eratosthenes(B)
     print(factor_base)
@@ -110,7 +119,7 @@ def sieve(n):
             x = incriment_x(x)
             continue
         print(f"factors: {factors}")
-        
+
         # generate exponent vector
         exponent_vector = np.zeros(len(factor_base), dtype=int)
         exponent_vector_actual = np.zeros(len(factor_base), dtype=int)
@@ -118,7 +127,7 @@ def sieve(n):
             exponent_vector[i] = factors.count(p) % 2
             exponent_vector_actual[i] = factors.count(p)
 
-        #add exponent vector to space
+        # add exponent vector to space
         if not np.all(exponent_vector == 0):
             if exponent_vectors is None:
                 exponent_vectors = exponent_vector
@@ -127,21 +136,30 @@ def sieve(n):
             elif exponent_vectors.ndim == 1:
                 if not np.all(exponent_vectors == exponent_vector):
                     exponent_vectors = np.vstack((exponent_vectors, exponent_vector))
-                    exponent_vectors_actual = np.vstack((exponent_vectors_actual, exponent_vector_actual))
+                    exponent_vectors_actual = np.vstack(
+                        (exponent_vectors_actual, exponent_vector_actual)
+                    )
                     exponent_as = np.append(exponent_as, a)
             elif not np.any(np.all(exponent_vectors == exponent_vector, axis=1)):
                 exponent_vectors = np.vstack((exponent_vectors, exponent_vector))
-                exponent_vectors_actual = np.vstack((exponent_vectors_actual, exponent_vector_actual))
+                exponent_vectors_actual = np.vstack(
+                    (exponent_vectors_actual, exponent_vector_actual)
+                )
                 exponent_as = np.append(exponent_as, a)
             # print(f"exponent_vector:\n {exponent_vector}")
         print(f"exponent_vectors:\n {exponent_vectors}")
 
         # check if we have enough vectors
-        if exponent_vectors is not None and exponent_vectors.ndim == 2 and exponent_vectors.shape[0] == NUMBER_OF_VECTORS_IN_SPACE_MOD*len(factor_base):
+        if (
+            exponent_vectors is not None
+            and exponent_vectors.ndim == 2
+            and exponent_vectors.shape[0]
+            == NUMBER_OF_VECTORS_IN_SPACE_MOD * len(factor_base)
+        ):
             break
 
         x = incriment_x(x)
-        
+
         # key = msvcrt.getch()
         # if key == b'q':
         #     return 0
@@ -165,7 +183,9 @@ def sieve(n):
         print(f"null_space:\n {ns_vector}")
 
         as_product = calculate_a_product(ns_vector, exponent_as)
-        primes_product = calculate_primes_product(ns_vector, exponent_vectors_actual, factor_base)
+        primes_product = calculate_primes_product(
+            ns_vector, exponent_vectors_actual, factor_base
+        )
 
         print(f"as_product: {as_product}")
         print(f"primes_product: {primes_product}")
@@ -175,6 +195,7 @@ def sieve(n):
 
         if factor != 1 and factor != n and factor != -1:
             return factor
+
 
 if __name__ == "__main__":
     n = 15347
@@ -186,4 +207,4 @@ if __name__ == "__main__":
     print(f"factor_base: {sieve_of_eratosthenes(B)}")
     print(f"factor: {f}")
 
-    #TODO: doesnt work for big numbers for some reason
+    # TODO: doesnt work for big numbers for some reason
