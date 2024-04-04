@@ -2,7 +2,7 @@ import math
 
 # import msvcrt
 import numpy as np
-from scipy.linalg import null_space
+from sympy import Matrix
 
 # Steps for the quadratic sieve:
 # 1. Choose a smoothness bound B. The number π(B), denoting the number of prime numbers less than B, will control both the length of the vectors and the number of vectors needed.
@@ -169,7 +169,13 @@ def sieve(n):
     print(f"exponent_vectors_actual:\n {exponent_vectors_actual}")
     print(f"exponent_as:\n {exponent_as}")
 
-    ns = null_space(exponent_vectors.T).T
+    ns_sympy = Matrix(exponent_vectors.T).nullspace()
+    ns = np.zeros((len(ns_sympy[0]), len(ns_sympy)))
+    for i in range(len(ns_sympy)):
+        numpy_array_from_sympy = np.array(ns_sympy[i]).astype(np.float64)
+        ns = np.hstack((ns, numpy_array_from_sympy))
+    ns = ns.T
+
     # print(f"null_space:\n {ns}")
     print(f"null_space size: {ns.shape}")
 
