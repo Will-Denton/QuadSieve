@@ -1,6 +1,6 @@
 import math
 
-# import msvcrt
+import msvcrt
 import numpy as np
 from sympy import Matrix
 
@@ -17,8 +17,10 @@ NUMBER_OF_VECTORS_IN_SPACE_MOD = 1
 
 
 def get_smoothness_bound(n):
+    # online found that B is approximately equal to exp(sqrt(log(n) * log(log(n))))
     # return math.floor(math.exp(math.sqrt(math.log(n) * math.log(math.log(n))))
-    return math.ceil(math.sqrt(n))
+    # return math.floor(math.sqrt(n))
+    return 10000 # seems to be a good B
 
 
 def incriment_x(x):
@@ -30,16 +32,18 @@ def incriment_x(x):
 
 
 def sieve_of_eratosthenes(B):
-    factor_base = []
-    is_primes = [True] * (B + 1)
+    factor_base = np.array([], dtype=int)
+    is_primes = np.ones(B + 1, dtype=bool)
+    is_primes[0] = False
+    is_primes[1] = False
     for i in range(2, math.ceil(math.sqrt(B + 1))):
         if is_primes[i]:
-            factor_base.append(i)
+            factor_base = np.append(factor_base, i)
             for j in range(i * i, B + 1, i):
                 is_primes[j] = False
     for i in range(math.ceil(math.sqrt(B + 1)), B + 1):
         if is_primes[i]:
-            factor_base.append(i)
+            factor_base = np.append(factor_base, i)
     return factor_base
 
 
@@ -94,7 +98,6 @@ def calculate_primes_product(ns_vector, exponent_vectors_actual, factor_base):
 
 def sieve(n):
     # Choose smoothness bound B
-    # online found that B is approximately equal to exp(sqrt(log(n) * log(log(n))))
     B = get_smoothness_bound(n)
 
     # Now we have B compute primes up to B using Sieve of Eratosthenes
@@ -153,9 +156,7 @@ def sieve(n):
         if (
             exponent_vectors is not None
             and exponent_vectors.ndim == 2
-            and exponent_vectors.shape[0]
-            == NUMBER_OF_VECTORS_IN_SPACE_MOD * len(factor_base)
-        ):
+            and exponent_vectors.shape[0] == NUMBER_OF_VECTORS_IN_SPACE_MOD * len(factor_base) + 3):
             break
 
         x = incriment_x(x)
@@ -200,17 +201,80 @@ def sieve(n):
         print(f"factor: {factor}")
 
         if factor != 1 and factor != n and factor != -1:
-            return factor
+            return (factor, n // factor)
+        
+
+# def get_B_smooth_factors(b, factor_base):
+    # return trial_division(b, factor_base)
+    # factors = np.array([], dtype=int)
+    # f = pollards_rho(b, c)
+    # while f != b:
+    #     b = b // f
+    #     f = pollards_rho(b, c)
+    #     factors = np.append(factors, f)
+    # return factors
+
+# def pollards_rho(n, c):
+#     x = 2
+#     y = 2
+#     d = 1
+#     f = lambda x: (x**2 + c) % n
+#     while d == 1:
+#         x = f(x)
+#         y = f(f(y))
+#         d = math.gcd(abs(x - y), n)
+#     return d
+
+
+def find_linear_dependencies(matrix):
+    n,m = matrix.shape
+    marks = np.zeros(n, dtype=bool)
+    for i in range(m):
+        col = matrix[:, i]
+        piv = -1
+        for j in range(n):
+            if col[j] == 1:
+                marks[j] = True
+                piv = j
+                break
+        if piv != -1:
+            for k in range(m):
+                if k != i:
+                    col2 = matrix[:, k]
+                    if col2[piv] == 1:
+                        matrix[:, k] = (matrix[:, k] ^ col) 
+
+    dependencies = []
+    for i in range(n):
+        if marks[i] == False:
+            dependent_list = []
+            dependent_list.append(i)
+            dependent_row = matrix[i]
+            for j in range(m):
+                if dependent_row[j] == 1:
+                    dependent_column = matrix[:, j]
+                    for k in range(n):
+                        if dependent_column[k] == 1:
+                            dependent_list.append(k)
+                            break
+            dependencies.append(dependent_list)
+    return dependencies
 
 
 if __name__ == "__main__":
-    n = 15347
-    B = get_smoothness_bound(n)
-    f = sieve(n)
-    print("\n=========")
-    print(f"number: {n}")
-    print(f"B: {B}")
-    print(f"factor_base: {sieve_of_eratosthenes(B)}")
-    print(f"factor: {f}")
+    matrix = np.array([[1, 1, 0, 0], [1, 1, 0, 1], [0, 1, 1, 1], [0, 0, 1, 0], [0, 0, 0, 1]])
+    matrix2 = np.array([[0,0,0,1],[1,1,1,0],[1,1,1,1]])
+    print(matrix2)
+    print(find_linear_dependencies(matrix2))
 
-    # TODO: doesnt work for big numbers for some reason
+    # n = 18061*17
+    # B = get_smoothness_bound(n)
+    # f = sieve(n)
+
+    # print(f"sieve_2: {sieve_of_eratosthenes(B)}")
+
+    # print("\n=========")
+    # print(f"number: {n}")
+    # print(f"B: {B}")
+    # print(f"factor_base: {sieve_of_eratosthenes(B)}")
+    # print(f"factors: {f}")
