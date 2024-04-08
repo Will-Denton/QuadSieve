@@ -10,12 +10,7 @@ import numpy as np
 # 6. We now have the desired identity. Compute the GCD of n with the difference (or sum) of a and b. This produces a factor, although it may be a trivial factor (n or 1). If the factor is trivial, try again with a different linear dependency or different a.
 
 
-def get_smoothness_bound(n):
-    return 15000 # arbirtary
-
-
-def get_sieve_bound(n):
-    return 75000000 # arbirtary
+DO_ASSERTS = True
 
 
 def sieve_of_eratosthenes(B):
@@ -137,6 +132,7 @@ def trial_division(b, factor_base):
     # trial division to find the factors of b
     factors = np.array([], dtype=int)
     for p in factor_base:
+        p = int(p)
         while b % p == 0:
             b = b // p
             factors = np.append(factors, p)
@@ -239,9 +235,12 @@ def calculate_primes_product(depenencies, factor_exponent_dict, as_vector, facto
     return primes_product
 
 
-def sieve(n):
-    B = get_smoothness_bound(n)
-    S = get_sieve_bound(n)
+def euclidian_algorithm(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
+
+def sieve(n, B, S):
     root_n = math.ceil(math.sqrt(n))
 
     print("Creating sieve...")
@@ -260,19 +259,56 @@ def sieve(n):
     print("Finished matrix creation, finding linear dependencies...")
     matrix_rr = np.copy(matrix)
     dependencies = find_linear_dependencies(matrix_rr)
+        
+    # assert that all dependencies are actually dependencies
+    if DO_ASSERTS:
+        for d in dependencies:
+            total = np.zeros(len(factor_base), dtype=bool)  
+            for i in d:
+                row = matrix[i]
+                total = total ^ row
+            assert np.array_equal(total, np.zeros(len(factor_base), dtype=bool))
 
-    # something doesn't work here, dependencies is is large but cant find factors :(
+        # assert prime factors actually multiply to a
+        for i in range(matrix.shape[0]):
+            a = as_vector[i]
+            calc_b = a*a - n
+            b = bs_vector[i]
+            assert calc_b == b
+
+            f = factor_exponent_dict[a]
+            primes_product = 1
+            for j, p in enumerate(factor_base):
+                primes_product *= pow(int(p), int(f[j]))
+
+            factors = []
+            for i in range(len(f)):
+                if f[i] != 0:
+                    factors.append(factor_base[i] ** f[i])
+            if primes_product != b:
+                print(get_B_smooth_factors(b, factor_base))
+                print(f"factors: {factors}")
+                print(f"primes_product: {primes_product}")
+                print(f"b: {b}")
+            assert primes_product == b
+
     print("Finished finding linear dependencies, looking for factors...")
-    print(len(dependencies))
+    print(f"number of dependencies: {len(dependencies)}")
     for depedency in dependencies:
         as_product = calculate_as_product(depedency, as_vector)
         primes_product = calculate_primes_product(depedency, factor_exponent_dict, as_vector, factor_base)
-        f = math.gcd(n, primes_product - as_product)
+        f = euclidian_algorithm(primes_product - as_product, n)
+        
         if f != 1 and f != n:
             return f, n // f
         
     return None
 
 if __name__ == "__main__":
-    n = 46839566299936919234246726809
-    print(f"n: {n}, factors: {sieve(n)}")
+    n, B, S = 46839566299936919234246726809, 15000, 15000000
+    # n, B, S = 16921456439215439701, 2000, 4000000
+    # n, B, S = 6172835808641975203638304919691358469663, 15000, 25000000
+    print(f"n: {n}, factors: {sieve(n, B, S)}")
+    # primes_under_B = sieve_of_eratosthenes(B)
+    # factor_base = get_factor_base(primes_under_B, n)
+    # print(get_B_smooth_factors(34539161229042973095,factor_base))
