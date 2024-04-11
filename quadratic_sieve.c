@@ -1,19 +1,33 @@
 #include <stdio.h>
 #include <gmp.h>
 
+void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
+    // Trivial factors
+    mpz_set_ui(*factor1, 1);
+    mpz_set(*factor2, n);
+}
+
 int main() {
-    // Initialize the arbitrary-precision integer
-    mpz_t big_num;
-    mpz_init(big_num);
-    
-    // Set the large number from a string
-    mpz_set_str(big_num, "3744843080529615909019181510330554205500926021947", 10); // 10 is the base
-    
-    // Print the number
-    gmp_printf("The big number is: %Zd\n", big_num);
-    
-    // Clear the memory occupied by big_num
-    mpz_clear(big_num);
-    
+    mpz_t n;
+    mpz_init(n);
+    mpz_set_str(n, "16921456439215439701", 10); // base 10
+
+    int B = 15000;
+    int S = 15000000;
+
+    // Factors of n
+    mpz_t factor1;
+    mpz_init(factor1);
+    mpz_t factor2;
+    mpz_init(factor2);
+
+    sieve(n, B, S, &factor1, &factor2);
+    gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
+
+    // Clear memory
+    mpz_clear(n);
+    mpz_clear(factor1);
+    mpz_clear(factor2);
+
     return 0;
 }
