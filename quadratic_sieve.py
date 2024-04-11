@@ -1,5 +1,7 @@
 import math
 import numpy as np
+from tqdm import tqdm
+import sys
 
 # Steps for the quadratic sieve:
 # 1. Choose a smoothness bound B. The number π(B), denoting the number of prime numbers less than B, will control both the length of the vectors and the number of vectors needed.
@@ -10,66 +12,51 @@ import numpy as np
 # 6. We now have the desired identity. Compute the GCD of n with the difference (or sum) of a and b. This produces a factor, although it may be a trivial factor (n or 1). If the factor is trivial, try again with a different linear dependency or different a.
 
 
-DO_ASSERTS = True
-
-
 def sieve_of_eratosthenes(B):
-    # calculate primes up to B
-    # https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes
-    factor_base = np.array([], dtype=int)
-    is_primes = np.ones(B + 1, dtype=bool)
-    is_primes[0] = False
-    is_primes[1] = False
-    for i in range(2, math.ceil(math.sqrt(B + 1))):
-        if is_primes[i]:
-            factor_base = np.append(factor_base, i)
-            for j in range(i * i, B + 1, i):
-                is_primes[j] = False
-    for i in range(math.ceil(math.sqrt(B + 1)), B + 1):
-        if is_primes[i]:
-            factor_base = np.append(factor_base, i)
-    return factor_base
+    is_prime = np.ones(B + 1, dtype=bool)
+    is_prime[:2] = False
+    for i in tqdm(range(2, int(B**0.5) + 1), desc="Sieve of Eratosthenes: "):
+        if is_prime[i]:
+            is_prime[i*i:B+1:i] = False
+    return np.nonzero(is_prime)[0]
 
 
 def quadratic_residue(n, p):
-    # check if n is a quadratic residue mod p (n has a square root mod p)
-    # https://en.wikipedia.org/wiki/Quadratic_residue
     assert isinstance(n, int) and isinstance(p, int)
     if p == 2:
         return 1
-
-    n = n % p
-    r = (p-1) // 2
-
-    a = 1
-    while r != 0:
-        if r % 2 == 0:
-            r = r // 2
-            n = n*n % p
-        else:
-            r = r - 1
-            a = a*n % p
-    return a
+    
+    return pow(n, (p - 1) // 2, p)
 
 
 def get_factor_base(primes, n):
     # in order for shanks-tonelli to work, the factor base must contain p such that n is a quadratic residue mod p
     # limit the primes found from the sieve of eratosthenes to only those that are quadratic residues
-    factor_base = np.array([], dtype=int)
-    for p in primes:
+    factor_base = []
+    for p in tqdm(primes, desc="Creating Factor Base: "):
         if quadratic_residue(n, int(p)) == 1:
-            factor_base = np.append(factor_base, p)
-    return factor_base
+            factor_base.append(p)
+    return np.array(factor_base, dtype=int)
 
 
 def get_sieve(S, n):
     # create sieve of size S
     sieve = []
     root_n = math.ceil(math.sqrt(n))
-    for i in range(S):
+    for i in tqdm(range(S), desc="Creating Sieve: "):
         a = i + root_n
         b = a*a - n
         sieve.append(b)
+    return sieve
+
+
+def get_sieve_log(S, n):
+    print("Creating Sieve Log ...")
+    # everythig is float64 since numpy list compression cant do python bigInts with size > 64 bits
+    # this causes a lot of error to accumulate, so epsilon is used to offset this later
+    root_n = np.float64(np.ceil(math.sqrt(n))) 
+    i_values = np.arange(0, S, dtype=np.float64)
+    sieve = np.log((i_values + root_n)**2 - np.float64(n))
     return sieve
 
 
@@ -78,17 +65,13 @@ def shanks_tonelli(n, p):
     #DID THIS https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm
     if p == 2:
         return [1]
-    
+        
     # 1. find S and Q such that p - 1 = Q * 2^S
     Q = p - 1
     S = 0
     while Q % 2 == 0:
         Q = Q // 2
         S += 1
-
-    if S == 1:
-        r = pow(n, (p + 1) // 4, p)
-        return r,p-r
     
     # 2. find a quadratic non-residue z
     z = 2
@@ -119,8 +102,9 @@ def sieve_primes(n, factor_base, S, sieve):
     # sieve the numbers in the sieve that are divisible by primes in the factor base
     # shanks-tonelli is used to find the square roots of n mod p and solutions to this
     # are used to find the numbers in the sieve that are divisible by p in the sieve
+    # super ineffiecient for small values of p
     root_n = math.ceil(math.sqrt(n))
-    for p in factor_base:
+    for p in tqdm(factor_base, desc="Preforming Shanks-Tonelli: "):
         roots_mod_p = shanks_tonelli(n, int(p))
         for root in roots_mod_p:
             x = (root - root_n) % p
@@ -128,19 +112,23 @@ def sieve_primes(n, factor_base, S, sieve):
                 sieve[i] = sieve[i] // p
 
 
-def trial_division(b, factor_base):
-    # trial division to find the factors of b
-    factors = np.array([], dtype=int)
-    for p in factor_base:
-        p = int(p)
-        while b % p == 0:
-            b = b // p
-            factors = np.append(factors, p)
-    return factors
+def sieve_primes_log(n, factor_base, S, log_sieve):
+    root_n = math.ceil(math.sqrt(n))
+    for p in tqdm(factor_base, desc="Preforming Sieve-Primes Numpy: "):
+        roots_mod_p = shanks_tonelli(n, int(p))
+        for root in roots_mod_p:
+            x = (root - root_n) % p
+            log_sieve[x:S:p] -= np.log(p)
 
 
 def get_B_smooth_factors(b, factor_base):
-    return trial_division(b, factor_base)
+    # trial division to find the factors of b
+    factors = []
+    for p in factor_base:
+        while b % int(p) == 0:
+            b = b // int(p)
+            factors.append(int(p))
+    return np.array(factors, dtype=int)
 
 
 def get_factor_vector(factors, factor_base):
@@ -152,28 +140,27 @@ def get_factor_vector(factors, factor_base):
     return exponent_vector
 
 
-def create_matrix(sieve, original_sieve, root_n, factor_base):
+def create_matrix(sieve, root_n, factor_base, n):
     # create the matrix mod 2 for finding dependencies
     # as vector is vector of a values corresponding to the b values in the sieve
     # factor_exponent_dict is a dictionary of the exponent vectors for each a value
+    epsilon = 1e-2 # this offsets the ammout of error accumulated by switching to float64 earlier
     matrix = []
     as_vector = []
-    bs_vector = []
     factor_exponent_dict = {}
-    for i in range(len(sieve)):
-        if sieve[i] == 1:
-            factors = get_B_smooth_factors(original_sieve[i], factor_base)
+    for i in tqdm(range(len(sieve)), desc="Creating Matrix: "):
+        if sieve[i] < epsilon:
+            factors = get_B_smooth_factors((i + root_n)**2 - n, factor_base)
             exponent_vector = get_factor_vector(factors, factor_base)
             if np.sum(exponent_vector % 2) == 0:
                 continue
             matrix.append((exponent_vector % 2).tolist())
             as_vector.append(i + root_n)
-            bs_vector.append(original_sieve[i])
             factor_exponent_dict[i + root_n] = exponent_vector
             if len(matrix) >= 2 * len(factor_base): # if rows is double the columns, break
                 break
     matrix = np.array(matrix, dtype=bool)
-    return matrix, as_vector, bs_vector, factor_exponent_dict
+    return matrix, as_vector, factor_exponent_dict
 
 
 def find_linear_dependencies(matrix):
@@ -240,75 +227,73 @@ def euclidian_algorithm(a, b):
         a, b = b, a % b
     return a
 
-def sieve(n, B, S):
-    root_n = math.ceil(math.sqrt(n))
 
-    print("Creating sieve...")
-    primes_under_B = sieve_of_eratosthenes(B)
-    factor_base = get_factor_base(primes_under_B, n)
-    sieve = get_sieve(S, n)
-    original_sieve = np.copy(sieve)
-
-    print("Created sieve, starting shanks tonelli...")
-    sieve_primes(n, factor_base, S, sieve)
-
-    print("Finished shanks tonelli, starting matrix creation...")
-    matrix, as_vector, bs_vector, factor_exponent_dict = create_matrix(sieve, original_sieve, root_n, factor_base)
-    print(f"matrix: {matrix.shape}")
-
-    print("Finished matrix creation, finding linear dependencies...")
-    matrix_rr = np.copy(matrix)
-    dependencies = find_linear_dependencies(matrix_rr)
-        
-    # assert that all dependencies are actually dependencies
-    if DO_ASSERTS:
-        for d in dependencies:
-            total = np.zeros(len(factor_base), dtype=bool)  
-            for i in d:
-                row = matrix[i]
-                total = total ^ row
-            assert np.array_equal(total, np.zeros(len(factor_base), dtype=bool))
-
-        # assert prime factors actually multiply to a
-        for i in range(matrix.shape[0]):
-            a = as_vector[i]
-            calc_b = a*a - n
-            b = bs_vector[i]
-            assert calc_b == b
-
-            f = factor_exponent_dict[a]
-            primes_product = 1
-            for j, p in enumerate(factor_base):
-                primes_product *= pow(int(p), int(f[j]))
-
-            factors = []
-            for i in range(len(f)):
-                if f[i] != 0:
-                    factors.append(factor_base[i] ** f[i])
-            if primes_product != b:
-                print(get_B_smooth_factors(b, factor_base))
-                print(f"factors: {factors}")
-                print(f"primes_product: {primes_product}")
-                print(f"b: {b}")
-            assert primes_product == b
-
-    print("Finished finding linear dependencies, looking for factors...")
-    print(f"number of dependencies: {len(dependencies)}")
+def return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n):
+    if len(dependencies) == 0:
+        return None
+    
     for depedency in dependencies:
         as_product = calculate_as_product(depedency, as_vector)
         primes_product = calculate_primes_product(depedency, factor_exponent_dict, as_vector, factor_base)
         f = euclidian_algorithm(primes_product - as_product, n)
-        
         if f != 1 and f != n:
             return f, n // f
         
     return None
 
+
+def sieve(n, B, S):
+    root_n = math.ceil(math.sqrt(n))
+
+    primes_under_B = sieve_of_eratosthenes(B)
+    factor_base = get_factor_base(primes_under_B, n)
+    sieve = get_sieve_log(S, n)
+
+    sieve_primes_log(n, factor_base, S, sieve)
+
+    print("Finished shanks tonelli, starting matrix creation...")
+    matrix, as_vector, factor_exponent_dict = create_matrix(sieve, root_n, factor_base, n)
+
+    print(f"Finished matrix creation with size: {matrix.shape}, finding linear dependencies...")
+    matrix_rr = np.copy(matrix)
+    dependencies = find_linear_dependencies(matrix_rr)
+
+    print(f"Finished finding {len(dependencies)} linear dependencies, looking for factors...")
+    return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
+
 if __name__ == "__main__":
-    n, B, S = 46839566299936919234246726809, 15000, 15000000
     # n, B, S = 16921456439215439701, 2000, 4000000
-    # n, B, S = 6172835808641975203638304919691358469663, 15000, 25000000
+    # n, B, S = 46839566299936919234246726809, 15000, 15000000
+    n, B, S = 6172835808641975203638304919691358469663, 30000, 1000000000
     print(f"n: {n}, factors: {sieve(n, B, S)}")
+
+    # n2 = 16921456439215439701
+    # n, B, S = 46839566299936919234246726809, 15000, 2
+    # print(n2.bit_length())
+    # get_sieve_log(S, n2)
+
+    #print number of bits in n
+
     # primes_under_B = sieve_of_eratosthenes(B)
     # factor_base = get_factor_base(primes_under_B, n)
-    # print(get_B_smooth_factors(34539161229042973095,factor_base))
+    # sieve_s = get_sieve_numpy(S, n)
+    # sieve_primes_numpy(n, factor_base, S, sieve_s)
+    # epsilon = 1e-6
+    # #print index where sieve_s is less than epsilon
+    # sieve_numpy_ans = np.where(sieve_s < epsilon)
+    # sieve_numpy_ans = sieve_numpy_ans[0]
+
+    # sieve_n = get_sieve(S, n)
+    # sieve_primes(n, factor_base, S, sieve_n)
+    # #make empty numpy array of length 0
+    # sieve_ans = np.zeros(0, dtype=int)
+    # for i in range(S):
+    #     if sieve_n[i] == 1:
+    #         sieve_ans = np.append(sieve_ans, i)
+    # print(sieve_ans)
+
+    # #check to see if sieve_ans and sieve_numpy_ans are the same
+    # print(np.array_equal(sieve_ans, sieve_numpy_ans))
+    # print(len(sieve_ans), len(sieve_numpy_ans))
+
+    

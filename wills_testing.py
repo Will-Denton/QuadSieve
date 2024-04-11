@@ -261,6 +261,60 @@ def find_linear_dependencies(matrix):
     return dependencies
 
 
+def quadratic_residue(n, p):
+    # check if n is a quadratic residue mod p (n has a square root mod p)
+    # https://en.wikipedia.org/wiki/Quadratic_residue
+    assert isinstance(n, int) and isinstance(p, int)
+    if p == 2:
+        return 1
+
+    n = n % p
+    r = (p-1) // 2
+
+    a = 1
+    while r != 0:
+        if r % 2 == 0:
+            r = r // 2
+            n = n*n % p
+        else:
+            r = r - 1
+            a = a*n % p
+    return a
+
+
+def do_asserts(n, factor_base, matrix, as_vector, bs_vector, factor_exponent_dict, dependencies):
+    if DO_ASSERTS:
+        for d in dependencies:
+            total = np.zeros(len(factor_base), dtype=bool)  
+            for i in d:
+                row = matrix[i]
+                total = total ^ row
+            assert np.array_equal(total, np.zeros(len(factor_base), dtype=bool))
+
+        # assert prime factors actually multiply to a
+        for i in range(matrix.shape[0]):
+            a = as_vector[i]
+            calc_b = a*a - n
+            b = bs_vector[i]
+            assert calc_b == b
+
+            f = factor_exponent_dict[a]
+            primes_product = 1
+            for j, p in enumerate(factor_base):
+                primes_product *= pow(int(p), int(f[j]))
+
+            factors = []
+            for i in range(len(f)):
+                if f[i] != 0:
+                    factors.append(factor_base[i] ** f[i])
+            if primes_product != b:
+                print(get_B_smooth_factors(b, factor_base))
+                print(f"factors: {factors}")
+                print(f"primes_product: {primes_product}")
+                print(f"b: {b}")
+            assert primes_product == b
+
+
 if __name__ == "__main__":
     matrix = np.array([[1, 1, 0, 0], [1, 1, 0, 1], [0, 1, 1, 1], [0, 0, 1, 0], [0, 0, 0, 1]])
     matrix2 = np.array([[0,0,0,1],[1,1,1,0],[1,1,1,1]])
