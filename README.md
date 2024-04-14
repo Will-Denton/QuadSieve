@@ -1,6 +1,4 @@
 # QuadSieve
-Aiden
-
 ## Python
 Run with
 ```bash
