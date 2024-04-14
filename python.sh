@@ -1,0 +1,1 @@
+time python quadratic_sieve.py
