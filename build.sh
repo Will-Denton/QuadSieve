@@ -1,4 +1,4 @@
 set -e
 
-gcc quadratic_sieve.c -o quadratic_sieve -I$(brew --prefix gmp)/include -L$(brew --prefix gmp)/lib -lgmp -O3
+gcc quadratic_sieve.c -o quadratic_sieve -I /opt/homebrew/opt/gmp/include -L /opt/homebrew/opt/gmp/lib -l gmp -O3
 time ./quadratic_sieve
