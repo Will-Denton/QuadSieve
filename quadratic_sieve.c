@@ -106,6 +106,11 @@ double* get_sieve_log(int S, mpz_t n) {
 
     // Create sieve
     double* sieve = malloc(S * sizeof(double));
+    if (sieve == NULL) {
+        puts("ERROR: Unable to allocate memory for sieve.");
+        exit(1);
+    }
+
     for (int i = 0; i < S; i++) {
         double current = i + root_n;
         double value = current * current - mpz_get_d(n);
@@ -113,7 +118,6 @@ double* get_sieve_log(int S, mpz_t n) {
     }
 
     // Clean up
-    free(sieve);
     mpz_clear(root_n_mpz);
 
     return sieve;
@@ -226,8 +230,9 @@ void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, do
                 log_sieve[j] -= log(p);
             }
         }
-
     }
+
+    mpz_clear(root_n);
 }
 
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
