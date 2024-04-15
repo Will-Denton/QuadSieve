@@ -1,6 +1,6 @@
 # QuadSieve
 ## Python
-Run with
+Run with:
 ```bash
 python quadratic_sieve.py
 ```
