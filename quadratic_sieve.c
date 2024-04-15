@@ -45,12 +45,12 @@ int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
 }
 
 int quadratic_residue(mpz_t n, int p) {
-    mpz_t mpz_p;
-    mpz_init_set_ui(mpz_p, p);  // Convert int to mpz_t
-
-    if (mpz_cmp_ui(mpz_p, 2) == 0) {
+    if (p == 0) {
         return 1;
     }
+
+    mpz_t mpz_p;
+    mpz_init_set_ui(mpz_p, p);  // Convert int to mpz_t
 
     mpz_t exp, result;
     mpz_inits(exp, result, NULL);
@@ -63,7 +63,7 @@ int quadratic_residue(mpz_t n, int p) {
     mpz_powm(result, n, exp, mpz_p);
     int res = (int)mpz_get_si(result);  // NOTE: This cast is only safe since p is an int
 
-    mpz_clears(exp, result, NULL);
+    mpz_clears(mpz_p, exp, result, NULL);
     return res;
 }
 
@@ -277,7 +277,9 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
 
     // Free memory
     free(primes_under_B);
+    free(factor_base);
     free(sieve);
+    mpz_clear(root_n);
 
     // Trivial factors (delete later)
     mpz_set_ui(*factor1, 1);
@@ -288,13 +290,13 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    // int B = 15000;
-    // int S = 15000000;
+    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    int B = 15000;
+    int S = 15000000;
 
-    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    int B = 30000;
-    int S = 1000000000;
+    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    // int B = 30000;
+    // int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
