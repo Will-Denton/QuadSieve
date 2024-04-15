@@ -268,7 +268,7 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     */
     // NOTE: We get slightly different results here than the Python code
     // This might be due to floating point precision issues
-    double* sieve = get_sieve_log(S, n);
+    double* sieve = get_sieve_log(S, n); // size S
 
     /*
     sieve_primes_log(n, factor_base, S, sieve)
@@ -277,6 +277,7 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
 
     // Free memory
     free(primes_under_B);
+    free(sieve);
 
     // Trivial factors (delete later)
     mpz_set_ui(*factor1, 1);
