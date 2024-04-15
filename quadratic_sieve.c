@@ -143,15 +143,17 @@ void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
         return;
     }
 
-    mpz_t Q, z, c, t, R, tmp, p_mpz, b;
-    mpz_inits(Q, z, c, t, R, tmp, p_mpz, b, NULL);
+    // TODO: Some of these variables can just be ints, which may improve performance
+    // If we switch over, we would need to implement our own modular exponentiation function using Pingala's algorithm
+    mpz_t z, c, t, R, tmp, p_mpz, b;
+    mpz_inits(z, c, t, R, tmp, p_mpz, b, NULL);
     mpz_set_ui(p_mpz, p);
 
     // 1. find S and Q such that p - 1 = Q * 2^S
-    mpz_sub_ui(Q, p_mpz, 1);
+    int Q = p - 1;
     unsigned long S = 0;
-    while (mpz_even_p(Q)) {
-        mpz_fdiv_q_2exp(Q, Q, 1);
+    while (Q % 2 == 0) {
+        Q = Q / 2;
         S++;
     }
 
@@ -163,9 +165,9 @@ void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
 
     // 3. initialize M, c, t, R
     unsigned long M = S;
-    mpz_powm_ui(c, z, mpz_get_ui(Q), p_mpz);
-    mpz_powm_ui(t, n, mpz_get_ui(Q), p_mpz);
-    mpz_add_ui(tmp, Q, 1);
+    mpz_powm_ui(c, z, Q, p_mpz);
+    mpz_powm_ui(t, n, Q, p_mpz);
+    mpz_set_ui(tmp, Q+1);
     mpz_fdiv_q_2exp(tmp, tmp, 1);
     mpz_powm_ui(R, n, mpz_get_ui(tmp), p_mpz);
 
@@ -175,7 +177,7 @@ void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
             *root_mod_p_1 = mpz_get_si(R);
             mpz_sub(tmp, p_mpz, R);
             *root_mod_p_2 = mpz_get_si(tmp);
-            mpz_clears(Q, z, c, t, R, tmp, p_mpz, b, NULL);
+            mpz_clears(z, c, t, R, tmp, p_mpz, b, NULL);
             return;
         }
 
@@ -296,13 +298,13 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    // int B = 15000;
-    // int S = 15000000;
+    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    int B = 15000;
+    int S = 15000000;
 
-    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    int B = 30000;
-    int S = 1000000000;
+    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    // int B = 30000;
+    // int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
