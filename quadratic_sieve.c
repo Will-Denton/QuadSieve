@@ -109,7 +109,7 @@ void ceil_sqrt(mpz_t result, const mpz_t n) {
 }
 
 double* get_sieve_log(int S, mpz_t n) {
-    puts("Creating Sieve Log...");
+    puts("Starting get_sieve_log...");
 
     // root_n = np.float64(np.ceil(math.sqrt(n)))
     mpz_t root_n_mpz;
@@ -201,6 +201,8 @@ void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
 }
 
 void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, double* log_sieve) {
+    puts("Starting sieve_primes_log...");
+
     mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
     ceil_sqrt(root_n, n);
     mpz_inits(tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
@@ -294,13 +296,13 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    int B = 15000;
-    int S = 15000000;
+    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    // int B = 15000;
+    // int S = 15000000;
 
-    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    // int B = 30000;
-    // int S = 1000000000;
+    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    int B = 30000;
+    int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
