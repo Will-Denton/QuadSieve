@@ -271,7 +271,6 @@ int* get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, int* 
 }
 
 void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
-    mpz_init(b);
     mpz_set_si(b, i);
     mpz_add(b, b, root_n);
 
@@ -285,14 +284,20 @@ void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
 void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, double** as_vector, GHashTable* factor_exponent_dict) {
     double epsilon = 0.01;
 
+    mpz_t b;
+    mpz_init(b);
+
     for (int i=0; i<sieve_size; i++) {
         if (sieve[i] < epsilon) {
-            mpz_t b;
             compute_b(b, i, root_n, n);
             int factors_size;
             int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
+
+            free(factors);
         }
     }
+
+    mpz_clear(b);
 }
 
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
