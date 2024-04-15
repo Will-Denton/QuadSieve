@@ -7,6 +7,10 @@
 int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
     // Initialize array of booleans
     bool* is_prime = malloc((B + 1) * sizeof(bool));
+    if (is_prime == NULL) {
+        puts("ERROR: Unable to allocate memory for is_prime.");
+        exit(1);
+    }
     for (int i = 0; i < B + 1; i++) {
         is_prime[i] = true;
     }
@@ -31,6 +35,10 @@ int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
 
     // Get primes
     int* primes_under_B = malloc(*num_primes_under_B * sizeof(int));
+    if (primes_under_B == NULL) {
+        puts("ERROR: Unable to allocate memory for primes_under_B.");
+        exit(1);
+    }
     int primes_index = 0;
     for (int i = 2; i < B + 1; i++) {
         if (is_prime[i]) {
@@ -70,6 +78,10 @@ int quadratic_residue(mpz_t n, int p) {
 int* get_factor_base(int* primes, int num_primes, mpz_t n, int* factor_base_size) {
     // NOTE: We are temporarily allocating more memory than we need here
     int* factor_base = malloc(num_primes * sizeof(int));
+    if (factor_base == NULL) {
+        puts("ERROR: Unable to allocate memory for factor_base.");
+        exit(1);
+    }
 
     *factor_base_size = 0;
     for (int i = 0; i < num_primes; i++) {
