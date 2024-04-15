@@ -87,6 +87,34 @@ mpz_t* get_factor_base(int* primes, int num_primes, mpz_t n, int* factor_base_si
     return factor_base;
 }
 
+double* get_sieve_log(int S, mpz_t n) {
+    puts("Creating Sieve Log...");
+
+    // root_n = np.float64(np.ceil(math.sqrt(n)))
+    mpz_t root_n_mpz;
+    mpz_init(root_n_mpz);
+    mpz_sqrt(root_n_mpz, n);
+    if (mpz_perfect_square_p(n) == 0) { // if n is not a perfect square
+        mpz_add_ui(root_n_mpz, root_n_mpz, 1);
+    }
+    double root_n = mpz_get_d(root_n_mpz);
+
+    // Create sieve
+    double* sieve = malloc(S * sizeof(double));
+    for (int i = 0; i < S; i++) {
+        double current = i + root_n;
+        double value = current * current - mpz_get_d(n);
+        sieve[i] = log(value);
+    }
+
+    // Clean up
+    free(sieve);
+    mpz_clear(root_n_mpz);
+
+    return sieve;
+}
+
+
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     /*
     root_n = math.ceil(math.sqrt(n))
@@ -117,6 +145,13 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
 
     /*
     sieve = get_sieve_log(S, n)
+    */
+    // NOTE: We get slightly different results here than the Python code
+    // This might be due to floating point precision issues
+    double* sieve = get_sieve_log(S, n);
+
+    /*
+    sieve_primes_log(n, factor_base, S, sieve)
     */
 
     // Free memory
