@@ -67,20 +67,20 @@ int quadratic_residue(mpz_t n, int p) {
     return res;
 }
 
-mpz_t* get_factor_base(int* primes, int num_primes, mpz_t n, int* factor_base_size) {
+int* get_factor_base(int* primes, int num_primes, mpz_t n, int* factor_base_size) {
     // NOTE: We are temporarily allocating more memory than we need here
-    mpz_t* factor_base = malloc(num_primes * sizeof(mpz_t));
+    int* factor_base = malloc(num_primes * sizeof(int));
 
     *factor_base_size = 0;
     for (int i = 0; i < num_primes; i++) {
         if (quadratic_residue(n, primes[i]) == 1) {
-            mpz_init_set_ui(factor_base[(*factor_base_size)++], primes[i]);
+            factor_base[(*factor_base_size)++] = primes[i];
         }
     }
 
     // Resize the array to the actual size needed
     if (*factor_base_size < num_primes) {
-        mpz_t* resized_factor_base = realloc(factor_base, (*factor_base_size) * sizeof(mpz_t));
+        int* resized_factor_base = realloc(factor_base, (*factor_base_size) * sizeof(int));
         factor_base = resized_factor_base;
     }
 
@@ -141,7 +141,7 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     factor_base = get_factor_base(primes_under_B, n)
     */
     int factor_base_size;
-    mpz_t* factor_base = get_factor_base(primes_under_B, num_primes_under_B, n, &factor_base_size);
+    int* factor_base = get_factor_base(primes_under_B, num_primes_under_B, n, &factor_base_size);
 
     /*
     sieve = get_sieve_log(S, n)
