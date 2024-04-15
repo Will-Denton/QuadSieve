@@ -3,6 +3,7 @@
 #include <gmp.h>
 #include <math.h>
 #include <stdbool.h>
+#include <glib.h>
 
 int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
     // Initialize array of booleans
@@ -282,6 +283,13 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     sieve_primes_log(n, factor_base, S, sieve)
     */
     sieve_primes_log(n, factor_base, factor_base_size, S, sieve);
+
+    /*
+    matrix, as_vector, factor_exponent_dict = create_matrix(sieve, root_n, factor_base, n)
+    */
+    // create_matrix(sieve, root_n, factor_base, n);
+
+    // void create_matrix(double* sieve, mpz_t root_n, int* factor_base, mpz_t n, )
 
     // Free memory
     free(primes_under_B);
