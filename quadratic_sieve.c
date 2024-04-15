@@ -281,10 +281,14 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
 int main() {
     mpz_t n;
     mpz_init(n);
-    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
 
-    int B = 15000;
-    int S = 15000000;
+    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    // int B = 15000;
+    // int S = 15000000;
+
+    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    int B = 30000;
+    int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
