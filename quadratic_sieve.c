@@ -244,6 +244,57 @@ void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, do
     mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
 }
 
+int* get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, int* factors_size) {
+    // trial division to find the factors of b
+    int* factors = malloc(factor_base_size * sizeof(int));
+    if (factors == NULL) {
+        puts("ERROR: Unable to allocate memory for factors.");
+        exit(1);
+    }
+
+    *factors_size = 0;
+    for (int i = 0; i < factor_base_size; i++) {
+        int p = factor_base[i];
+        while (mpz_divisible_ui_p(b, p) != 0) {
+            mpz_divexact_ui(b, b, p); // fast since we know it's divisible
+            factors[(*factors_size)++] = p;
+        }
+    }
+
+    // Resize the array to the actual size needed
+    if (*factors_size < factor_base_size) {
+        int* resized_factors = realloc(factors, (*factors_size) * sizeof(int));
+        factors = resized_factors;
+    }
+
+    return factors;
+}
+
+void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
+    mpz_init(b);
+    mpz_set_si(b, i);
+    mpz_add(b, b, root_n);
+
+    // Calculate (i + root_n)^2
+    mpz_mul(b, b, b);
+
+    // Compute (i + root_n)^2 - n
+    mpz_sub(b, b, n);
+}
+
+void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, double** as_vector, GHashTable* factor_exponent_dict) {
+    double epsilon = 0.01;
+
+    for (int i=0; i<sieve_size; i++) {
+        if (sieve[i] < epsilon) {
+            mpz_t b;
+            compute_b(b, i, root_n, n);
+            int factors_size;
+            int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
+        }
+    }
+}
+
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     /*
     root_n = math.ceil(math.sqrt(n))
@@ -287,9 +338,11 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     /*
     matrix, as_vector, factor_exponent_dict = create_matrix(sieve, root_n, factor_base, n)
     */
-    // create_matrix(sieve, root_n, factor_base, n);
-
-    // void create_matrix(double* sieve, mpz_t root_n, int* factor_base, mpz_t n, )
+    // TODO
+    bool** matrix;
+    double* as_vector;
+    GHashTable* factor_exponent_dict;
+    create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, &matrix, &as_vector, factor_exponent_dict);
 
     // Free memory
     free(primes_under_B);
