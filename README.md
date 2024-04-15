@@ -9,8 +9,8 @@ python quadratic_sieve.py
 Dependencies:
 - [GMP](https://gmplib.org) for arbitrary precision arithmetic
 
-Run with
+Run with the appropriate platform build script:
 ```bash
-./build.sh
+./mac_build.sh
+./linux_build.sh
 ```
-May need a different build script for Windows.
