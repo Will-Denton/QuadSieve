@@ -201,25 +201,23 @@ void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
 }
 
 void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, double* log_sieve) {
-    mpz_t root_n, tmp, p_mpz;
+    mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
     ceil_sqrt(root_n, n);
-    mpz_inits(tmp, p_mpz, NULL);
+    mpz_inits(tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
 
     for (int i=0; i<factor_base_size; i++) {
         int p = factor_base[i];
+        mpz_set_ui(p_mpz, p);
 
         int root_mod_p_1 = -1;
         int root_mod_p_2 = -1;
         shanks_tonelli(n, p, &root_mod_p_1, &root_mod_p_2);
         if (root_mod_p_1 != -1) {
             // Calculate x = (root_mod_p_1 - root_n) % p
-            mpz_set_ui(p_mpz, p);
-            mpz_t root_mod_p_1_mpz;
-            mpz_init_set_ui(root_mod_p_1_mpz, root_mod_p_1);
+            mpz_set_ui(root_mod_p_1_mpz, root_mod_p_1);
             mpz_sub(tmp, root_mod_p_1_mpz, root_n);
             mpz_mod(tmp, tmp, p_mpz);
             int x = mpz_get_si(tmp);
-            mpz_clear(root_mod_p_1_mpz);
 
             for (int j=x; j<S; j+=p) {
                 log_sieve[j] -= log(p);
@@ -227,13 +225,10 @@ void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, do
         }
         if (root_mod_p_2 != -1) {
             // Calculate x = (root_mod_p_2 - root_n) % p
-            mpz_set_ui(p_mpz, p);
-            mpz_t root_mod_p_2_mpz;
-            mpz_init_set_ui(root_mod_p_2_mpz, root_mod_p_2);
+            mpz_set_ui(root_mod_p_2_mpz, root_mod_p_2);
             mpz_sub(tmp, root_mod_p_2_mpz, root_n);
             mpz_mod(tmp, tmp, p_mpz);
             int x = mpz_get_si(tmp);
-            mpz_clear(root_mod_p_2_mpz);
 
             for (int j=x; j<S; j+=p) {
                 log_sieve[j] -= log(p);
@@ -241,7 +236,7 @@ void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, do
         }
     }
 
-    mpz_clears(root_n, tmp, p_mpz, NULL);
+    mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
 }
 
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
