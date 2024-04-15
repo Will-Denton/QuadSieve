@@ -44,6 +44,49 @@ int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
     return primes_under_B;
 }
 
+int quadratic_residue(mpz_t n, int p) {
+    mpz_t mpz_p;
+    mpz_init_set_ui(mpz_p, p);  // Convert int to mpz_t
+
+    if (mpz_cmp_ui(mpz_p, 2) == 0) {
+        return 1;
+    }
+
+    mpz_t exp, result;
+    mpz_inits(exp, result, NULL);
+
+    // Calculate exp = (p - 1) // 2
+    mpz_sub_ui(exp, mpz_p, 1);
+    mpz_fdiv_q_ui(exp, exp, 2);
+
+    // Calculate n^exp (mod p)
+    mpz_powm(result, n, exp, mpz_p);
+    int res = (int)mpz_get_si(result);  // NOTE: This cast is only safe since p is an int
+
+    mpz_clears(exp, result, NULL);
+    return res;
+}
+
+mpz_t* get_factor_base(int* primes, int num_primes, mpz_t n, int* factor_base_size) {
+    // NOTE: We are temporarily allocating more memory than we need here
+    mpz_t* factor_base = malloc(num_primes * sizeof(mpz_t));
+
+    *factor_base_size = 0;
+    for (int i = 0; i < num_primes; i++) {
+        if (quadratic_residue(n, primes[i]) == 1) {
+            mpz_init_set_ui(factor_base[(*factor_base_size)++], primes[i]);
+        }
+    }
+
+    // Resize the array to the actual size needed
+    if (*factor_base_size < num_primes) {
+        mpz_t* resized_factor_base = realloc(factor_base, (*factor_base_size) * sizeof(mpz_t));
+        factor_base = resized_factor_base;
+    }
+
+    return factor_base;
+}
+
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     /*
     root_n = math.ceil(math.sqrt(n))
@@ -63,11 +106,17 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     /*
     primes_under_B = sieve_of_eratosthenes(B)
     */
-    int num_primes_under_B = 0;
+    int num_primes_under_B;
     int* primes_under_B = sieve_of_eratosthenes(B, &num_primes_under_B);
 
     /*
     factor_base = get_factor_base(primes_under_B, n)
+    */
+    int factor_base_size;
+    mpz_t* factor_base = get_factor_base(primes_under_B, num_primes_under_B, n, &factor_base_size);
+
+    /*
+    sieve = get_sieve_log(S, n)
     */
 
     // Free memory
