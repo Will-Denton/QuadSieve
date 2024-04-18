@@ -305,18 +305,36 @@ int* get_factor_vector(int* factors, int factors_size, int* factor_base, int fac
     return exponent_vector;
 }
 
-void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, double** as_vector, GHashTable* factor_exponent_dict) {
+void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, GArray** as_vector, GHashTable* factor_exponent_dict) {
     double epsilon = 0.01;
 
     mpz_t b;
     mpz_init(b);
 
+    *as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
     for (int i=0; i<sieve_size; i++) {
         if (sieve[i] < epsilon) {
             compute_b(b, i, root_n, n);
             int factors_size;
             int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
             int* exponent_vector = get_factor_vector(factors, factors_size, factor_base, factor_base_size); // size factor_base_size
+
+            int sum = 0;
+            int* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(int));
+            for (int i=0; i<factor_base_size; i++) {
+                int mod_2 = exponent_vector[i] % 2;
+                sum += mod_2;
+                exponent_vector_mod_2[i] = mod_2;
+            }
+            // TODO: Why do we do this?
+            if (sum == 0) {
+                continue;
+            }
+
+            // as_vector.append(i + root_n)
+            mpz_t* i_plus_root_n = g_new(mpz_t, 1);
+            mpz_add_ui(*i_plus_root_n, root_n, i);
+            g_array_append_val(*as_vector, i_plus_root_n);
 
             free(factors);
         }
@@ -370,9 +388,18 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     */
     // TODO
     bool** matrix;
-    double* as_vector;
+    GArray* as_vector;
     GHashTable* factor_exponent_dict;
     create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, &matrix, &as_vector, factor_exponent_dict);
+
+
+    // Clear as_vector
+    for (guint i = 0; i < as_vector->len; i++) {
+        mpz_t* value = g_array_index(as_vector, mpz_t*, i);
+        mpz_clear(*value);
+        g_free(value);
+    }
+    g_array_free(as_vector, FALSE); 
 
     // Free memory
     free(primes_under_B);
