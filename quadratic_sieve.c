@@ -316,15 +316,16 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
         if (sieve[i] < epsilon) {
             compute_b(b, i, root_n, n);
             int factors_size;
+            // TODO: Should keep a buffer of size factor_base_size to avoid reallocating memory
             int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
             int* exponent_vector = get_factor_vector(factors, factors_size, factor_base, factor_base_size); // size factor_base_size
 
             int sum = 0;
             int* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(int));
-            for (int i=0; i<factor_base_size; i++) {
-                int mod_2 = exponent_vector[i] % 2;
+            for (int j=0; j<factor_base_size; j++) {
+                int mod_2 = exponent_vector[j] % 2;
                 sum += mod_2;
-                exponent_vector_mod_2[i] = mod_2;
+                exponent_vector_mod_2[j] = mod_2;
             }
             // TODO: Why do we do this?
             if (sum == 0) {
@@ -333,10 +334,15 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
 
             // as_vector.append(i + root_n)
             mpz_t* i_plus_root_n = g_new(mpz_t, 1);
+            mpz_init(*i_plus_root_n);
             mpz_add_ui(*i_plus_root_n, root_n, i);
             g_array_append_val(*as_vector, i_plus_root_n);
 
+            mpz_clear(*i_plus_root_n);
+
             free(factors);
+            free(exponent_vector);
+            free(exponent_vector_mod_2);
         }
     }
 
@@ -399,7 +405,7 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
         mpz_clear(*value);
         g_free(value);
     }
-    g_array_free(as_vector, FALSE); 
+    g_array_free(as_vector, FALSE);
 
     // Free memory
     free(primes_under_B);
