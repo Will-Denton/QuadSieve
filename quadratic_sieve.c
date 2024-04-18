@@ -12,6 +12,8 @@ int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
         puts("ERROR: Unable to allocate memory for is_prime.");
         exit(1);
     }
+    // TODO: Calloc is faster than malloc + loop
+    // TODO: We can use a bit array instead of a boolean array
     for (int i = 0; i < B + 1; i++) {
         is_prime[i] = true;
     }
@@ -281,6 +283,28 @@ void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
     mpz_sub(b, b, n);
 }
 
+int* get_factor_vector(int* factors, int factors_size, int* factor_base, int factor_base_size) {
+    // create a vector of the exponents of the factors in the factor base
+    int* exponent_vector = calloc(factor_base_size, sizeof(int));
+    if (exponent_vector == NULL) {
+        puts("ERROR: Unable to allocate memory for exponent_vector.");
+        exit(1);
+    }
+
+    GHashTable* lookup_factor_index = g_hash_table_new(NULL, NULL);
+    for (int i=0; i<factor_base_size; i++) {
+        g_hash_table_insert(lookup_factor_index, GINT_TO_POINTER(factor_base[i]), GINT_TO_POINTER(i));
+    }
+
+    for (int i = 0; i < factors_size; i++) {
+        int key = GPOINTER_TO_INT(g_hash_table_lookup(lookup_factor_index, GINT_TO_POINTER(factors[i])));
+        exponent_vector[key] += 1;
+    }
+
+    g_hash_table_destroy(lookup_factor_index);
+    return exponent_vector;
+}
+
 void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, double** as_vector, GHashTable* factor_exponent_dict) {
     double epsilon = 0.01;
 
@@ -292,6 +316,7 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
             compute_b(b, i, root_n, n);
             int factors_size;
             int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
+            int* exponent_vector = get_factor_vector(factors, factors_size, factor_base, factor_base_size); // size factor_base_size
 
             free(factors);
         }
