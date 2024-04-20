@@ -312,6 +312,7 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
     mpz_init(b);
 
     for (int i=0; i<sieve_size; i++) {
+        // TODO: Can do this in an earlier step
         if (sieve[i] < epsilon) {
             compute_b(b, i, root_n, n);
             int factors_size;
