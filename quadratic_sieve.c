@@ -318,7 +318,7 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
             }
             get_factor_vector(factors, factors_size, factor_base, factor_base_size, exponent_vector);
 
-            int* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(int));
+            bool* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(bool));
             if (exponent_vector_mod_2 == NULL) {
                 puts("ERROR: Unable to allocate memory for exponent_vector_mod_2.");
                 exit(1);
@@ -439,13 +439,13 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    mpz_set_str(n, "16921456439215439701", 10); // base 10
-    int B = 2000;
-    int S = 4000000;
+    // mpz_set_str(n, "16921456439215439701", 10); // base 10
+    // int B = 2000;
+    // int S = 4000000;
 
-    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    // int B = 15000;
-    // int S = 15000000;
+    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    int B = 15000;
+    int S = 15000000;
 
     // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
     // int B = 30000;
