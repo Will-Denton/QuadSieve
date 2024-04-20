@@ -283,14 +283,8 @@ void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
     mpz_sub(b, b, n);
 }
 
-int* get_factor_vector(int* factors, int factors_size, int* factor_base, int factor_base_size) {
+void get_factor_vector(int* factors, int factors_size, int* factor_base, int factor_base_size, int* exponent_vector) {
     // create a vector of the exponents of the factors in the factor base
-    int* exponent_vector = calloc(factor_base_size, sizeof(int));
-    if (exponent_vector == NULL) {
-        puts("ERROR: Unable to allocate memory for exponent_vector.");
-        exit(1);
-    }
-
     GHashTable* lookup_factor_index = g_hash_table_new(NULL, NULL);
     for (int i=0; i<factor_base_size; i++) {
         g_hash_table_insert(lookup_factor_index, GINT_TO_POINTER(factor_base[i]), GINT_TO_POINTER(i));
@@ -302,7 +296,6 @@ int* get_factor_vector(int* factors, int factors_size, int* factor_base, int fac
     }
 
     g_hash_table_destroy(lookup_factor_index);
-    return exponent_vector;
 }
 
 void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
@@ -311,17 +304,26 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
     mpz_t b;
     mpz_init(b);
 
+    int* exponent_vector = calloc(factor_base_size, sizeof(int));
+    if (exponent_vector == NULL) {
+        puts("ERROR: Unable to allocate memory for exponent_vector.");
+        exit(1);
+    }
+    int* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(int));
+    if (exponent_vector_mod_2 == NULL) {
+        puts("ERROR: Unable to allocate memory for exponent_vector_mod_2.");
+        exit(1);
+    }
+
     for (int i=0; i<sieve_size; i++) {
         // TODO: Can do this in an earlier step
         if (sieve[i] < epsilon) {
             compute_b(b, i, root_n, n);
             int factors_size;
-            // TODO: Should keep a buffer of size factor_base_size to avoid reallocating memory
             int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
-            int* exponent_vector = get_factor_vector(factors, factors_size, factor_base, factor_base_size); // size factor_base_size
+            get_factor_vector(factors, factors_size, factor_base, factor_base_size, exponent_vector);
 
             int sum = 0;
-            int* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(int));
             for (int j=0; j<factor_base_size; j++) {
                 int mod_2 = exponent_vector[j] % 2;
                 sum += mod_2;
@@ -338,12 +340,12 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
             g_array_append_val(as_vector, i_plus_root_n);
 
             free(factors);
-            free(exponent_vector);
-            free(exponent_vector_mod_2);
         }
     }
 
     mpz_clear(b);
+    free(exponent_vector);
+    free(exponent_vector_mod_2);
 }
 
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
