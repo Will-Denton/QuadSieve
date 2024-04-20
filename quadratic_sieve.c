@@ -346,6 +346,10 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
             char* key_str = mpz_get_str(NULL, 10, *i_plus_root_n);
             g_hash_table_insert(factor_exponent_dict, key_str, exponent_vector);
 
+            if (matrix->len >= 2*factor_base_size) {
+                break;
+            }
+
             free(factors);
         }
     }
