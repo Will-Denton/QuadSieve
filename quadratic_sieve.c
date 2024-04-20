@@ -298,17 +298,11 @@ void get_factor_vector(int* factors, int factors_size, int* factor_base, int fac
     g_hash_table_destroy(lookup_factor_index);
 }
 
-void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
+void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool** matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
     double epsilon = 0.01;
 
     mpz_t b;
     mpz_init(b);
-
-    int* exponent_vector = calloc(factor_base_size, sizeof(int));
-    if (exponent_vector == NULL) {
-        puts("ERROR: Unable to allocate memory for exponent_vector.");
-        exit(1);
-    }
     int* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(int));
     if (exponent_vector_mod_2 == NULL) {
         puts("ERROR: Unable to allocate memory for exponent_vector_mod_2.");
@@ -321,6 +315,12 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
             compute_b(b, i, root_n, n);
             int factors_size;
             int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
+
+            int* exponent_vector = calloc(factor_base_size, sizeof(int));
+            if (exponent_vector == NULL) {
+                puts("ERROR: Unable to allocate memory for exponent_vector.");
+                exit(1);
+            }
             get_factor_vector(factors, factors_size, factor_base, factor_base_size, exponent_vector);
 
             int sum = 0;
@@ -339,12 +339,15 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
             mpz_add_ui(*i_plus_root_n, root_n, i);
             g_array_append_val(as_vector, i_plus_root_n);
 
+            // factor_exponent_dict[i + root_n] = exponent_vector
+            char* key_str = mpz_get_str(NULL, 10, *i_plus_root_n);
+            g_hash_table_insert(factor_exponent_dict, key_str, exponent_vector);
+
             free(factors);
         }
     }
 
     mpz_clear(b);
-    free(exponent_vector);
     free(exponent_vector_mod_2);
 }
 
@@ -394,8 +397,8 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     // TODO
     bool** matrix;
     GArray* as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
-    GHashTable* factor_exponent_dict;
-    create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, &matrix, as_vector, factor_exponent_dict);
+    GHashTable* factor_exponent_dict = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
 
     /*
     Free memory
@@ -407,6 +410,8 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
         g_free(value);
     }
     g_array_free(as_vector, TRUE);
+
+    g_hash_table_destroy(factor_exponent_dict);
 
     free(primes_under_B);
     free(factor_base);
