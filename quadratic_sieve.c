@@ -357,6 +357,14 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
     mpz_clear(b);
 }
 
+void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_base_size) {
+    // find the linear dependencies in the matrix
+    // follows this paper https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
+
+    int n = matrix->len;
+    int m = factor_base_size;
+}
+
 void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     /*
     root_n = math.ceil(math.sqrt(n))
@@ -400,11 +408,14 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     /*
     matrix, as_vector, factor_exponent_dict = create_matrix(sieve, root_n, factor_base, n)
     */
-    // TODO
     GArray* matrix = g_array_new(FALSE, FALSE, sizeof(bool*));
     GArray* as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
     GHashTable* factor_exponent_dict = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
+
+    // dependencies = find_linear_dependencies(matrix_rr)
+    GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(int*));
+    find_linear_dependencies(dependencies, matrix, factor_base_size);
 
     /*
     Free memory
@@ -439,13 +450,13 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    // mpz_set_str(n, "16921456439215439701", 10); // base 10
-    // int B = 2000;
-    // int S = 4000000;
+    mpz_set_str(n, "16921456439215439701", 10); // base 10
+    int B = 2000;
+    int S = 4000000;
 
-    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    int B = 15000;
-    int S = 15000000;
+    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    // int B = 15000;
+    // int S = 15000000;
 
     // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
     // int B = 30000;
