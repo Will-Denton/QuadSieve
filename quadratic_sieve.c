@@ -327,7 +327,6 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
                 sum += mod_2;
                 exponent_vector_mod_2[j] = mod_2;
             }
-            // TODO: Why do we do this?
             if (sum == 0) {
                 continue;
             }
