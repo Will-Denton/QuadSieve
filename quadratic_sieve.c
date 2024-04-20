@@ -305,13 +305,12 @@ int* get_factor_vector(int* factors, int factors_size, int* factor_base, int fac
     return exponent_vector;
 }
 
-void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, GArray** as_vector, GHashTable* factor_exponent_dict) {
+void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, bool*** matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
     double epsilon = 0.01;
 
     mpz_t b;
     mpz_init(b);
 
-    *as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
     for (int i=0; i<sieve_size; i++) {
         if (sieve[i] < epsilon) {
             compute_b(b, i, root_n, n);
@@ -335,9 +334,7 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
             mpz_t* i_plus_root_n = g_new(mpz_t, 1);
             mpz_init(*i_plus_root_n);
             mpz_add_ui(*i_plus_root_n, root_n, i);
-            g_array_append_val(*as_vector, i_plus_root_n);
-
-            mpz_clear(*i_plus_root_n);
+            g_array_append_val(as_vector, i_plus_root_n);
 
             free(factors);
             free(exponent_vector);
@@ -393,20 +390,21 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     */
     // TODO
     bool** matrix;
-    GArray* as_vector;
+    GArray* as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
     GHashTable* factor_exponent_dict;
-    create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, &matrix, &as_vector, factor_exponent_dict);
+    create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, &matrix, as_vector, factor_exponent_dict);
 
-
-    // Clear as_vector
+    /*
+    Free memory
+    */
+    // as_vector
     for (guint i = 0; i < as_vector->len; i++) {
         mpz_t* value = g_array_index(as_vector, mpz_t*, i);
         mpz_clear(*value);
         g_free(value);
     }
-    g_array_free(as_vector, FALSE);
+    g_array_free(as_vector, TRUE);
 
-    // Free memory
     free(primes_under_B);
     free(factor_base);
     free(sieve);
@@ -421,9 +419,13 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    int B = 15000;
-    int S = 15000000;
+    mpz_set_str(n, "16921456439215439701", 10); // base 10
+    int B = 2000;
+    int S = 4000000;
+
+    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    // int B = 15000;
+    // int S = 15000000;
 
     // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
     // int B = 30000;
