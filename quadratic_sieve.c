@@ -404,9 +404,9 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
             bool* row = g_array_index(matrix, bool*, i);
             
             for (int j = 0; j < m; j++) {
-                if (row[j] == 1) {
+                if (row[j] == 1) {  // matrix[i][j] == 1
                     for (int k = 0; k < n; k++) {
-                        if (g_array_index(matrix, bool*, k)[j] == 1) {
+                        if (g_array_index(matrix, bool*, k)[j] == 1) {  // matrix[k][j] == 1
                             g_array_append_val(dependent_list, k);
                             break;
                         }

@@ -174,7 +174,7 @@ def find_linear_dependencies(matrix):
         col = matrix[:, i]
         piv = -1
         for j in range(n):
-            if col[j] == 1:
+            if col[j] == 1:  # matrix[j][i] == 1
                 marks[j] = True
                 piv = j
                 break
@@ -182,8 +182,8 @@ def find_linear_dependencies(matrix):
             for k in range(m):
                 if k != i:
                     col2 = matrix[:, k]
-                    if col2[piv] == 1:
-                        matrix[:, k] = matrix[:, k] ^ col
+                    if col2[piv] == 1:  # matrix[piv][k] == 1
+                        matrix[:, k] = matrix[:, k] ^ col  # matrix[:, k] = matrix[:, k] ^ matrix[:, i]
 
     dependencies = []
     for i in range(n):
@@ -192,10 +192,10 @@ def find_linear_dependencies(matrix):
             dependent_list.append(i)
             dependent_row = matrix[i]
             for j in range(m):
-                if dependent_row[j] == 1:
+                if dependent_row[j] == 1:  # matrix[i][j] == 1
                     dependent_column = matrix[:, j]
                     for k in range(n):
-                        if dependent_column[k] == 1:
+                        if dependent_column[k] == 1:  # matrix[k][j] == 1
                             dependent_list.append(k)
                             break
             dependencies.append(dependent_list)
