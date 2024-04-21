@@ -234,10 +234,10 @@ def return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n
     if len(dependencies) == 0:
         return None
 
-    for depedency in dependencies:
-        as_product = calculate_as_product(depedency, as_vector)
+    for dependency in dependencies:
+        as_product = calculate_as_product(dependency, as_vector)
         primes_product = calculate_primes_product(
-            depedency, factor_exponent_dict, as_vector, factor_base
+            dependency, factor_exponent_dict, as_vector, factor_base
         )
         f = euclidian_algorithm(primes_product - as_product, n)
         if f != 1 and f != n:
@@ -273,9 +273,9 @@ def sieve(n, B, S):
 
 
 if __name__ == "__main__":
-    # n, B, S = 16921456439215439701, 2000, 4000000
+    n, B, S = 16921456439215439701, 2000, 4000000
     # n, B, S = 46839566299936919234246726809, 15000, 15000000
-    n, B, S = 6172835808641975203638304919691358469663, 30000, 1000000000
+    # n, B, S = 6172835808641975203638304919691358469663, 30000, 1000000000
     print(f"n: {n}, factors: {sieve(n, B, S)}")
 
     # n2 = 16921456439215439701
