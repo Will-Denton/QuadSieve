@@ -299,6 +299,8 @@ void get_factor_vector(int* factors, int factors_size, int* factor_base, int fac
 }
 
 void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
+    puts("Starting create_matrix...");
+
     double epsilon = 0.01;
 
     mpz_t b;
@@ -358,6 +360,8 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
 }
 
 void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_base_size) {
+    puts("Starting find_linear_dependencies...");
+
     // find the linear dependencies in the matrix
     // follows this paper https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
 
@@ -609,17 +613,17 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    mpz_set_str(n, "16921456439215439701", 10); // base 10
-    int B = 2000;
-    int S = 4000000;
+    // mpz_set_str(n, "16921456439215439701", 10); // base 10
+    // int B = 2000;
+    // int S = 4000000;
 
     // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
     // int B = 15000;
     // int S = 15000000;
 
-    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    // int B = 30000;
-    // int S = 1000000000;
+    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    int B = 30000;
+    int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
