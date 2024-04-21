@@ -420,11 +420,12 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
     free(marks);
 }
 
-void calculate_as_product(GArray* dependency, GArray* exponent_as, mpz_t as_product) {
+void calculate_as_product(GArray* dependencies, GArray* exponent_as, mpz_t as_product) {
     mpz_set_ui(as_product, 1);
-    for (int i = 0; i < dependency->len; i++) {
-        mpz_t* current_exponent = &g_array_index(exponent_as, mpz_t, i);
-        mpz_mul(as_product, as_product, *current_exponent);
+    for (int i = 0; i < dependencies->len; i++) {
+        int row = g_array_index(dependencies, int, i);
+        mpz_t* val = g_array_index(exponent_as, mpz_t*, row);
+        mpz_mul(as_product, as_product, *val);
     }
 }
 
@@ -475,19 +476,23 @@ void euclidian_algorithm(mpz_t result, mpz_t a, mpz_t b) {
     mpz_set(result, current_a);
 }
 
-void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* as_vector, GHashTable* factor_exponent_dict, int* factor_base, int factor_base_size, mpz_t n) {
+bool return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* as_vector, GHashTable* factor_exponent_dict, int* factor_base, int factor_base_size, mpz_t n) {
     if (dependencies->len == 0) {
-        return;
+        return 1;
     }
     
     for(int i = 0; i < dependencies->len; i++) { 
+        GArray* dependency = g_array_index(dependencies, GArray*, i);
+
         mpz_t as_product;
         mpz_init(as_product);
         mpz_t primes_product;
         mpz_init(primes_product);
         
-        calculate_as_product((GArray*) dependencies[i].data, as_vector, as_product);
-        calculate_primes_product((GArray*) dependencies[i].data, factor_exponent_dict, as_vector, factor_base, factor_base_size, primes_product);
+        calculate_as_product(dependency, as_vector, as_product);
+        gmp_printf("%Zd\n", as_product);
+        return 1;
+        calculate_primes_product(dependency, factor_exponent_dict, as_vector, factor_base, factor_base_size, primes_product);
 
         mpz_t f;
         mpz_init(f);
@@ -498,11 +503,11 @@ void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* 
         if (mpz_cmp_ui(f, 1) != 0 && mpz_cmp(f, n) != 0) {
             mpz_set(factor1, f);
             mpz_divexact(factor2, n, f);
-            return;
+            return 0;
         }
     }
 
-    puts("ERROR: No nontrivial factors found.");
+    return 1;
 }
 
 void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
@@ -558,7 +563,10 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
-    //return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
+    bool fail = return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
+    if (fail) {
+        puts("ERROR: No nontrivial factors found.");
+    }
 
     /*
     Free memory
