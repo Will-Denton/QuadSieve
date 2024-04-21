@@ -363,9 +363,146 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
 
     int n = matrix->len;
     int m = factor_base_size;
+
+    // marks = np.zeros(n, dtype=bool)
+    bool* marks = calloc(n, sizeof(bool));
+    if (marks == NULL) {
+        puts("ERROR: Unable to allocate memory for marks.");
+        exit(1);
+    }
+
+    for (int i = 0; i < m; i++) {
+        int piv = -1;
+        for (int j = 0; j < n; j++) {
+            if (g_array_index(matrix, int, j * m + i) == 1) { // matrix[j][i]
+                marks[j] = true;
+                piv = j;
+                break;
+            }
+        }
+
+        if (piv != -1) {
+            for (int k = 0; k < m; k++) {
+                if (k != i) {
+                    bool flip = g_array_index(matrix, int, piv * m + k) == 1; // Check if we need to flip the column
+                    if (flip) {
+                        for (int j = 0; j < n; j++) { 
+                            g_array_index(matrix, int, j * m + k) ^= 1; // Flip every bit in the column
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        if (!marks[i]) {
+            GArray* dependent_list = g_array_new(false, false, sizeof(int));
+            g_array_append_val(dependent_list, i);
+
+            for (int j = 0; j < m; j++) {
+                if (g_array_index(matrix, int, i * m + j) == 1) {
+                    for (int k = 0; k < n; k++) {
+                        if (g_array_index(matrix, int, k * m + j) == 1) {
+                            g_array_append_val(dependent_list, k);
+                            break;
+                        }
+                    }
+                }
+            }
+            g_array_append_val(dependencies, dependent_list);
+        }
+    }
+
+    free(marks);
 }
 
-void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
+void calculate_as_product(GArray* dependency, GArray* exponent_as, mpz_t as_product) {
+    mpz_set_ui(as_product, 1);
+    for (int i = 0; i < dependency->len; i++) {
+        mpz_t* current_exponent = &g_array_index(exponent_as, mpz_t, i);
+        mpz_mul(as_product, as_product, *current_exponent);
+    }
+}
+
+void calculate_primes_product(GArray* dependency, GHashTable* factor_exponent_dict, GArray* as_vector, int* factor_base, int factor_base_size, mpz_t primes_product) {
+    mpz_set_ui(primes_product, 1);
+    GArray* prime_power_vector = g_array_new(false, true, factor_base_size);
+    
+    for (int i = 0; i < dependency->len; i++) {
+        int row = dependency->data[i];
+        int* factor_exponents = g_hash_table_lookup(factor_exponent_dict, g_array_index(as_vector, mpz_t, i));
+        for (int j = 0; j < factor_base_size; j++) {
+            prime_power_vector[i].data = prime_power_vector[i].data + factor_exponents[j];
+        }
+    }
+    for (int i=0; i<factor_base_size; i++) {
+        int p = factor_base[i];
+        mpz_t power;
+        mpz_init(power);
+        mpz_ui_pow_ui(power, p, g_array_index(prime_power_vector, int, i));
+
+        mpz_mul(primes_product, primes_product, power);
+    }
+}
+
+void euclidian_algorithm(mpz_t result, mpz_t a, mpz_t b) {
+    mpz_t current_a, current_b;
+    mpz_init_set(current_a, a);
+    mpz_init_set(current_b, b);
+
+    while (mpz_sgn(current_b) != 0) { // Continue while current_b is not zero
+        mpz_t temp;
+        mpz_init(temp);
+        
+        // temp = current_a % current_b
+        mpz_mod(temp, current_a, current_b);
+        
+        // current_a = current_b
+        mpz_set(current_a, current_b);
+        
+        // current_b = temp
+        mpz_set(current_b, temp);
+        
+        mpz_clear(temp);
+    }
+
+    mpz_clear(current_a);
+    mpz_clear(current_b);
+    mpz_set(result, current_a);
+}
+
+void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* as_vector, GHashTable* factor_exponent_dict, int* factor_base, int factor_base_size, mpz_t n) {
+    if (dependencies->len == 0) {
+        return;
+    }
+    
+    for(int i = 0; i < dependencies->len; i++) { 
+        mpz_t as_product;
+        mpz_init(as_product);
+        mpz_t primes_product;
+        mpz_init(primes_product);
+        
+        calculate_as_product((GArray*) dependencies[i].data, as_vector, as_product);
+        calculate_primes_product((GArray*) dependencies[i].data, factor_exponent_dict, as_vector, factor_base, factor_base_size, primes_product);
+
+        mpz_t f;
+        mpz_init(f);
+        mpz_t a;
+        mpz_init(a);
+        mpz_sub(a, primes_product, as_product);
+        euclidian_algorithm(f, a, n);
+        if (mpz_cmp_ui(f, 1) != 0 && mpz_cmp(f, n) != 0) {
+            mpz_set(factor1, f);
+            mpz_divexact(factor2, n, f);
+            return;
+        }
+    }
+
+    puts("ERROR: No nontrivial factors found.");
+}
+
+void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     /*
     root_n = math.ceil(math.sqrt(n))
     */
@@ -417,6 +554,9 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(int*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
+    // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
+    //return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
+
     /*
     Free memory
     */
@@ -440,10 +580,6 @@ void sieve(mpz_t n, int B, int S, mpz_t* factor1, mpz_t* factor2) {
     free(factor_base);
     free(sieve);
     mpz_clear(root_n);
-
-    // Trivial factors (delete later)
-    mpz_set_ui(*factor1, 1);
-    mpz_set(*factor2, n);
 }
 
 int main() {
@@ -468,7 +604,7 @@ int main() {
     mpz_t factor2;
     mpz_init(factor2);
 
-    sieve(n, B, S, &factor1, &factor2);
+    sieve(n, B, S, factor1, factor2);
     gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
     // Clear memory
