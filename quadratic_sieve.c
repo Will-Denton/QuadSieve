@@ -374,7 +374,8 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
     for (int i = 0; i < m; i++) {
         int piv = -1;
         for (int j = 0; j < n; j++) {
-            if (g_array_index(matrix, int, j * m + i) == 1) { // matrix[j][i]
+            bool* row = g_array_index(matrix, bool*, j);
+            if (row[i] == 1) { // matrix[j][i] == 1
                 marks[j] = true;
                 piv = j;
                 break;
@@ -382,12 +383,13 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
         }
 
         if (piv != -1) {
-            for (int k = 0; k < m; k++) {
-                if (k != i) {
-                    bool flip = g_array_index(matrix, int, piv * m + k) == 1; // Check if we need to flip the column
-                    if (flip) {
-                        for (int j = 0; j < n; j++) { 
-                            g_array_index(matrix, int, j * m + k) ^= 1; // Flip every bit in the column
+            bool* pivotRow = g_array_index(matrix, bool*, piv);
+            for (int k=0; k<m; k++) {
+                if (k != i && pivotRow[k] == 1) { // matrix[piv][k] == 1
+                    for (int j=0; j<n; j++) {
+                        bool* row = g_array_index(matrix, bool*, j);
+                        if (row[i] == 1) { // If matrix[j][i] == 1,
+                            row[k] = row[k] ^ 1; // Flip matrix[j][k]
                         }
                     }
                 }
@@ -397,13 +399,14 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
 
     for (int i = 0; i < n; i++) {
         if (!marks[i]) {
-            GArray* dependent_list = g_array_new(false, false, sizeof(int));
+            GArray* dependent_list = g_array_new(FALSE, FALSE, sizeof(int));
             g_array_append_val(dependent_list, i);
-
+            bool* row = g_array_index(matrix, bool*, i);
+            
             for (int j = 0; j < m; j++) {
-                if (g_array_index(matrix, int, i * m + j) == 1) {
+                if (row[j] == 1) {
                     for (int k = 0; k < n; k++) {
-                        if (g_array_index(matrix, int, k * m + j) == 1) {
+                        if (g_array_index(matrix, bool*, k)[j] == 1) {
                             g_array_append_val(dependent_list, k);
                             break;
                         }
@@ -551,7 +554,7 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
 
     // dependencies = find_linear_dependencies(matrix_rr)
-    GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(int*));
+    GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
@@ -560,6 +563,12 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     /*
     Free memory
     */
+    // matrix
+    for (int i = 0; i < matrix->len; i++) {
+        free(g_array_index(matrix, bool*, i));
+    }
+    g_array_free(matrix, TRUE);
+
     // as_vector
     for (int i = 0; i < as_vector->len; i++) {
         mpz_t* value = g_array_index(as_vector, mpz_t*, i);
@@ -568,11 +577,12 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     }
     g_array_free(as_vector, TRUE);
 
-    // matrix
-    for (int i = 0; i < matrix->len; i++) {
-        free(g_array_index(matrix, bool*, i));
+    // dependencies
+    for (int i = 0; i < dependencies->len; i++) {
+        GArray* inner_array = g_array_index(dependencies, GArray*, i);
+        g_array_free(inner_array, TRUE);
     }
-    g_array_free(matrix, TRUE);
+    g_array_free(dependencies, TRUE);
 
     g_hash_table_destroy(factor_exponent_dict);
 
