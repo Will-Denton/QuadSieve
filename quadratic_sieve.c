@@ -429,25 +429,37 @@ void calculate_as_product(GArray* dependencies, GArray* exponent_as, mpz_t as_pr
     }
 }
 
-void calculate_primes_product(GArray* dependency, GHashTable* factor_exponent_dict, GArray* as_vector, int* factor_base, int factor_base_size, mpz_t primes_product) {
+void calculate_primes_product(GArray* dependencies, GHashTable* factor_exponent_dict, GArray* as_vector, int* factor_base, int factor_base_size, mpz_t primes_product) {
     mpz_set_ui(primes_product, 1);
-    GArray* prime_power_vector = g_array_new(false, true, factor_base_size);
+    int* prime_power_vector = calloc(factor_base_size, sizeof(int));
     
-    for (int i = 0; i < dependency->len; i++) {
-        int row = dependency->data[i];
-        int* factor_exponents = g_hash_table_lookup(factor_exponent_dict, g_array_index(as_vector, mpz_t, i));
+    for (int i = 0; i < dependencies->len; i++) {
+        int row = g_array_index(dependencies, int, i);
+
+        mpz_t* key_mpz = g_array_index(as_vector, mpz_t*, row);
+        char* key_str = mpz_get_str(NULL, 10, *key_mpz);
+        int* factor_exponents = g_hash_table_lookup(factor_exponent_dict, key_str);
+
         for (int j = 0; j < factor_base_size; j++) {
-            prime_power_vector[i].data = prime_power_vector[i].data + factor_exponents[j];
+            prime_power_vector[j] = prime_power_vector[j] + factor_exponents[j];
         }
     }
+
+    // prime_power_vector = prime_power_vector // 2
+    for (int i = 0; i < factor_base_size; i++) {
+        prime_power_vector[i] = prime_power_vector[i] / 2;
+    }
+
+    mpz_t power;
+    mpz_init(power);
     for (int i=0; i<factor_base_size; i++) {
         int p = factor_base[i];
-        mpz_t power;
-        mpz_init(power);
-        mpz_ui_pow_ui(power, p, g_array_index(prime_power_vector, int, i));
+
+        mpz_ui_pow_ui(power, p, prime_power_vector[i]);
 
         mpz_mul(primes_product, primes_product, power);
     }
+    mpz_clear(power);
 }
 
 void euclidian_algorithm(mpz_t result, mpz_t a, mpz_t b) {
@@ -471,9 +483,9 @@ void euclidian_algorithm(mpz_t result, mpz_t a, mpz_t b) {
         mpz_clear(temp);
     }
 
+    mpz_set(result, current_a);
     mpz_clear(current_a);
     mpz_clear(current_b);
-    mpz_set(result, current_a);
 }
 
 bool return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* as_vector, GHashTable* factor_exponent_dict, int* factor_base, int factor_base_size, mpz_t n) {
@@ -490,8 +502,6 @@ bool return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* 
         mpz_init(primes_product);
         
         calculate_as_product(dependency, as_vector, as_product);
-        gmp_printf("%Zd\n", as_product);
-        return 1;
         calculate_primes_product(dependency, factor_exponent_dict, as_vector, factor_base, factor_base_size, primes_product);
 
         mpz_t f;
