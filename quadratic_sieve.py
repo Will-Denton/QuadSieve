@@ -206,7 +206,6 @@ def calculate_as_product(depenencies, exponent_as):
     as_product = 1
     for row in depenencies:
         as_product *= exponent_as[row]
-        as_product = as_product
     return as_product
 
 
@@ -219,7 +218,6 @@ def calculate_primes_product(depenencies, factor_exponent_dict, as_vector, facto
 
     for i, p in enumerate(factor_base):
         primes_product *= pow(int(p), int(prime_power_vector[i]))
-        primes_product = primes_product
 
     return primes_product
 
@@ -273,8 +271,8 @@ def sieve(n, B, S):
 
 
 if __name__ == "__main__":
-    n, B, S = 16921456439215439701, 2000, 4000000
-    # n, B, S = 46839566299936919234246726809, 15000, 15000000
+    # n, B, S = 16921456439215439701, 2000, 4000000
+    n, B, S = 46839566299936919234246726809, 15000, 15000000
     # n, B, S = 6172835808641975203638304919691358469663, 30000, 1000000000
     print(f"n: {n}, factors: {sieve(n, B, S)}")
 
