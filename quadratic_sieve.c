@@ -116,6 +116,7 @@ void ceil_sqrt(mpz_t result, const mpz_t n) {
 double* get_sieve_log(int S, mpz_t n) {
     puts("Starting get_sieve_log...");
 
+    // root_n = np.float64(np.ceil(math.sqrt(n)))
     mpz_t root_n_mpz;
     ceil_sqrt(root_n_mpz, n);
     double root_n = mpz_get_d(root_n_mpz);
@@ -127,31 +128,33 @@ double* get_sieve_log(int S, mpz_t n) {
         exit(1);
     }
 
-    mpz_t b;
-    mpz_init(b);
-    mpfr_t b_r;
-    mpfr_init2(b_r, 255);
-
-    for(int i=0; i<S; i++) {
-        mpz_set_si(b, i);
-        mpz_add(b, b, root_n_mpz);
-        mpz_mul(b, b, b);
-        mpz_sub(b, b, n);
-
-        mpfr_set_z(b_r, b, MPFR_RNDN);  // Convert mpz_t to mpfr_t
-        mpfr_log(b_r, b_r, MPFR_RNDN);  // Compute the natural logarithm of b
-
-        // convert b_r to a double
-        double b_d = mpfr_get_d(b_r, MPFR_RNDN);
-        sieve[i] = b_d;
+    for (int i = 0; i < S; i++) {
+        double current = i + root_n;
+        double value = current * current - mpz_get_d(n);
+        sieve[i] = log(value);
     }
 
     // Clean up
     mpz_clear(root_n_mpz);
-    mpz_clear(b);
-    mpfr_clear(b_r);
 
     return sieve;
+}
+
+double* get_sieve(int S, mpz_t n, GArray* sieve) {
+    puts("Starting get_sieve...");
+
+    mpz_t root_n_mpz;
+    ceil_sqrt(root_n_mpz, n);
+    double root_n = mpz_get_d(root_n_mpz);
+
+    for (int i = 0; i < S; i++) {
+        mpz_t* b = g_new(mpz_t, 1);
+        mpz_init(*b);
+        mpz_add_ui(*b, root_n_mpz, i);
+        mpz_mul(*b, *b, *b);
+        mpz_sub(*b, *b, n);
+        g_array_append_val(sieve, b);
+    }
 }
 
 void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
@@ -255,6 +258,54 @@ void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, do
 
             for (int j=x; j<S; j+=p) {
                 log_sieve[j] -= log(p);
+            }
+        }
+    }
+
+    mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
+}
+
+void sieve_primes(mpz_t n, int* factor_base, int factor_base_size, int S, GArray* log_sieve) {
+    puts("Starting sieve_primes_log...");
+
+    mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
+    ceil_sqrt(root_n, n);
+    mpz_inits(tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
+
+    for (int i=0; i<factor_base_size; i++) {
+        int p = factor_base[i];
+        mpz_set_ui(p_mpz, p);
+
+        int root_mod_p_1 = -1;
+        int root_mod_p_2 = -1;
+        shanks_tonelli(n, p, &root_mod_p_1, &root_mod_p_2);
+        if (root_mod_p_1 != -1) {
+            mpz_set_ui(root_mod_p_1_mpz, root_mod_p_1);
+            mpz_sub(tmp, root_mod_p_1_mpz, root_n);
+            mpz_mod(tmp, tmp, p_mpz);
+            int x = mpz_get_si(tmp);
+
+            mpz_t p_mpz;
+            for (int j=x; j<S; j+=p) {
+                //divide index j by p
+                mpz_t* value = g_array_index(log_sieve, mpz_t*, j);
+                mpz_init_set_ui(p_mpz, p);
+                mpz_divexact(*value, *value, p_mpz);
+            }
+            mpz_clear(p_mpz);
+        }
+        if (root_mod_p_2 != -1) {
+            // Calculate x = (root_mod_p_2 - root_n) % p
+            mpz_set_ui(root_mod_p_2_mpz, root_mod_p_2);
+            mpz_sub(tmp, root_mod_p_2_mpz, root_n);
+            mpz_mod(tmp, tmp, p_mpz);
+            int x = mpz_get_si(tmp);
+
+            for (int j=x; j<S; j+=p) {
+                //divide index j by p
+                mpz_t* value = g_array_index(log_sieve, mpz_t*, j);
+                mpz_init_set_ui(p_mpz, p);
+                mpz_divexact(*value, *value, p_mpz);
             }
         }
     }
@@ -723,44 +774,100 @@ int main() {
     // int B = 30000;
     // int S = 1000000000;
 
-    mpz_t root_n_mpz;
-    ceil_sqrt(root_n_mpz, n);
-    double root_n = mpz_get_d(root_n_mpz);
+    //time how long it takes for the following:
 
-    double current = root_n;
-    double value = current * current - mpz_get_d(n);
-    printf("sieve[0]: %f\n", log(value));
+    int num_primes_under_B;
+    int* primes_under_B = sieve_of_eratosthenes(B, &num_primes_under_B);
 
-    mpz_t b;
-    mpz_init(b);
-    mpz_set_si(b, 0);
-    mpz_add(b, b, root_n_mpz);
-    mpz_mul(b, b, b);
-    mpz_sub(b, b, n);
+    int factor_base_size;
+    int* factor_base = get_factor_base(primes_under_B, num_primes_under_B, n, &factor_base_size);
 
-    mpfr_t b_r;
-    mpfr_init2(b_r, 255);
-    mpfr_set_z(b_r, b, MPFR_RNDN);  // Convert mpz_t to mpfr_t
-    mpfr_log(b_r, b_r, MPFR_RNDN);  // Compute the natural logarithm of b
+    //Start time
+    clock_t start, end;
+    start = clock();
+    double* sieve = get_sieve_log(S, n);
+    end = clock();
+    double time_taken = ((double)end - start) / CLOCKS_PER_SEC;
+    printf("Time taken for get_sieve_log: %f\n", time_taken);
+    
+    start = clock();
+    GArray* sieve_int = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
+    get_sieve(S, n, sieve_int);
+    end = clock();
+    time_taken = ((double)end - start) / CLOCKS_PER_SEC;
+    printf("Time taken for get_sieve: %f\n", time_taken);
 
-    // convert b_r to a double
-    double b_d = mpfr_get_d(b_r, MPFR_RNDN);
+    start = clock();
+    sieve_primes_log(n, factor_base, factor_base_size, S, sieve);
+    end = clock();
+    time_taken = ((double)end - start) / CLOCKS_PER_SEC;
+    printf("Time taken for sieve_primes_log: %f\n", time_taken);
 
-    printf("Logarithm of b is: %f\n", b_d);
+    start = clock();
+    sieve_primes(n, factor_base, factor_base_size, S, sieve_int);
+    end = clock();
+    time_taken = ((double)end - start) / CLOCKS_PER_SEC;
+    printf("Time taken for sieve_primes: %f\n", time_taken);
+
+    //check correctness
+    int num_b_smooth_in_log = 0;
+    for(int i=0; i<S; i++) {
+        if(sieve[i] < 0.000001) {
+            num_b_smooth_in_log++;
+        }
+    }
+
+    int num_b_smooth_in_int = 0;
+    for(int i=0; i<S; i++) {
+        mpz_t* value = g_array_index(sieve_int, mpz_t*, i);
+        if(mpz_cmp_ui(*value, 1) == 0) {
+            num_b_smooth_in_int++;
+        }
+    }
+    printf("Number of b smooth numbers in log: %d\n", num_b_smooth_in_log);
+    printf("Number of b smooth numbers in int: %d\n", num_b_smooth_in_int);
+
+    // printf("int sieve[0]: %d\n", );
+
+
+    // mpz_t root_n_mpz;
+    // ceil_sqrt(root_n_mpz, n);
+    // double root_n = mpz_get_d(root_n_mpz);
+
+    // double current = root_n;
+    // double value = current * current - mpz_get_d(n);
+    // printf("sieve[0]: %f\n", log(value));
+
+    // mpz_t b;
+    // mpz_init(b);
+    // mpz_set_si(b, 0);
+    // mpz_add(b, b, root_n_mpz);
+    // mpz_mul(b, b, b);
+    // mpz_sub(b, b, n);
+
+    // mpfr_t b_r;
+    // mpfr_init2(b_r, 255);
+    // mpfr_set_z(b_r, b, MPFR_RNDN);  // Convert mpz_t to mpfr_t
+    // mpfr_log(b_r, b_r, MPFR_RNDN);  // Compute the natural logarithm of b
+
+    // // convert b_r to a double
+    // double b_d = mpfr_get_d(b_r, MPFR_RNDN);
+
+    // printf("Logarithm of b is: %f\n", b_d);
 
     // Nontrivial factors of n
-    mpz_t factor1;
-    mpz_init(factor1);
-    mpz_t factor2;
-    mpz_init(factor2);
+    // mpz_t factor1;
+    // mpz_init(factor1);
+    // mpz_t factor2;
+    // mpz_init(factor2);
 
-    sieve(n, B, S, factor1, factor2);
-    gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
+    // sieve(n, B, S, factor1, factor2);
+    // gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
-    // Clear memory
-    mpz_clear(n);
-    mpz_clear(factor1);
-    mpz_clear(factor2);
+    // // Clear memory
+    // mpz_clear(n);
+    // mpz_clear(factor1);
+    // mpz_clear(factor2);
 
     return 0;
 }
