@@ -572,19 +572,19 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
 
     //save the matrix out to file
-    FILE *f_matrix = fopen("matrix_c.txt", "w");
-    for (int i = 0; i < matrix->len; i++) {
-        bool* row = g_array_index(matrix, bool*, i);
-        fprintf(f_matrix, "[");
+    // FILE *f_matrix = fopen("matrix_c.txt", "w");
+    // for (int i = 0; i < matrix->len; i++) {
+    //     bool* row = g_array_index(matrix, bool*, i);
+    //     fprintf(f_matrix, "[");
 
-        for (int j = 0; j < factor_base_size; j++) {
-            fprintf(f_matrix, "%d ", row[j]);
-        }
+    //     for (int j = 0; j < factor_base_size; j++) {
+    //         fprintf(f_matrix, "%d ", row[j]);
+    //     }
 
-        fseek(f_matrix, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
-        fprintf(f_matrix, "]\n");
-    }
-    fclose(f_matrix);
+    //     fseek(f_matrix, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
+    //     fprintf(f_matrix, "]\n");
+    // }
+    // fclose(f_matrix);
 
 
     // dependencies = find_linear_dependencies(matrix_rr)
@@ -592,21 +592,22 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
     //write dependencies to file
-    FILE *f = fopen("dependencies_c_easy.txt", "w");
+    // FILE *f = fopen("dependencies_c_easy.txt", "w");
 
     // Do the assert statements here
+    // First check to make sure the dependencies are actually linearly independent
     for (int j = 0; j < dependencies->len; j++) {
         GArray* d = g_array_index(dependencies, GArray*, j);
         bool* total = g_malloc0(factor_base_size * sizeof(bool)); // Initialize a new boolean array to false (equivalent to zeros in numpy)   
 
-        fprintf(f, "[");
+        // fprintf(f, "[");
 
         for (int i = 0; i < d->len; i++) {
             int index = g_array_index(d, int, i);
             bool* row = g_array_index(matrix, bool*, index);
 
             // Write d to file
-            fprintf(f, "%d, ", index);
+            // fprintf(f, "%d, ", index);
 
 
             // Perform bitwise XOR on each element of the row with 'total'
@@ -615,9 +616,8 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
             }
         }
 
-        fseek(f, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
-
-        fprintf(f, "]\n");
+        // fseek(f, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
+        // fprintf(f, "]\n");
 
         // Check if 'total' is all false (equivalent to numpy's array_equal to zeros)
         bool all_false = TRUE;
@@ -633,7 +633,36 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
 
         g_free(total); // Free the dynamically allocated memory
     }
-    fclose(f);
+    // fclose(f);
+
+    // Then check that prime factors actually multiply to b
+
+    for (int i = 0; i < matrix->len; i++) {
+        mpz_t* a = g_array_index(as_vector, mpz_t*, i);
+        mpz_t calc_b;
+        mpz_init(calc_b);
+        mpz_mul(calc_b, *a, *a);
+        mpz_sub(calc_b, calc_b, n);
+
+        char* key_str = mpz_get_str(NULL, 10, *a);
+        int* f = g_hash_table_lookup(factor_exponent_dict, key_str);
+        mpz_t primes_product;
+        mpz_init_set_ui(primes_product, 1);
+
+        mpz_t temp, p;
+        mpz_init(temp);
+        mpz_init(p);
+
+        for (int j = 0; j < factor_base_size; j++) {
+            mpz_set_ui(p, factor_base[j]); // Set p to the current base
+            mpz_pow_ui(temp, p, f[j]);     // temp = p^f[j]
+            mpz_mul(primes_product, primes_product, temp); // primes_product *= temp
+        }
+
+        printf("Primes product: %s is correct with b: %s\n", mpz_get_str(NULL, 10, primes_product), mpz_get_str(NULL, 10, calc_b));
+        assert(mpz_cmp(primes_product, calc_b) == 0); // Using assert to verify that the prime factors actually multiply to b
+
+    }
 
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
     return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
