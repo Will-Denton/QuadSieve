@@ -264,6 +264,48 @@ def sieve(n, B, S):
     matrix_rr = np.copy(matrix)
     dependencies = find_linear_dependencies(matrix_rr)
 
+    # save matrix to file
+    # np.save("matrix.npy", matrix)
+
+    # save dependencies to file - dependencies have different sizes so cant save as numpy array
+    with open("dependencies_easy.txt", "w") as f:
+        for d in dependencies:
+            f.write(str(d) + "\n")
+
+    #save as_vector to file
+    # as_vector_np = np.array(as_vector)
+    # np.save("as_vector.npy", as_vector_np)
+
+    for d in dependencies:
+            total = np.zeros(len(factor_base), dtype=bool)  
+            for i in d:
+                row = matrix[i]
+                total = total ^ row
+            assert np.array_equal(total, np.zeros(len(factor_base), dtype=bool))
+
+    # assert prime factors actually multiply to a
+    for i in range(matrix.shape[0]):
+        a = as_vector[i]
+        calc_b = a*a - n
+
+        f = factor_exponent_dict[a]
+        primes_product = 1
+        for j, p in enumerate(factor_base):
+            primes_product *= pow(int(p), int(f[j]))
+
+        factors = []
+        for i in range(len(f)):
+            if f[i] != 0:
+                factors.append(factor_base[i] ** f[i])
+        if primes_product != calc_b:
+            print(get_B_smooth_factors(b, factor_base))
+            print(f"factors: {factors}")
+            print(f"primes_product: {primes_product}")
+            print(f"b: {calc_b}")
+        assert primes_product == calc_b
+
+
+
     print(
         f"Finished finding {len(dependencies)} linear dependencies, looking for factors..."
     )

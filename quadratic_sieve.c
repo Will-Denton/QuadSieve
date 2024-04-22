@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <glib.h>
+#include <assert.h>
 
 int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
     // Initialize array of booleans
@@ -574,6 +575,49 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
+    //write dependencies to file
+    FILE *f = fopen("dependencies_c_easy.txt", "w");
+
+    // Do the assert statements here
+    for (int j = 0; j < dependencies->len; j++) {
+        GArray* d = g_array_index(dependencies, GArray*, j);
+        bool* total = g_malloc0(factor_base_size * sizeof(bool)); // Initialize a new boolean array to false (equivalent to zeros in numpy)   
+
+        fprintf(f, "[");
+
+        for (int i = 0; i < d->len; i++) {
+            int index = g_array_index(d, int, i);
+            bool* row = g_array_index(matrix, bool*, index);
+
+            // Write d to file
+            fprintf(f, "%d, ", index);
+
+
+            // Perform bitwise XOR on each element of the row with 'total'
+            for (int k = 0; k < factor_base_size; k++) {
+                total[k] ^= row[k]; // XOR operation
+            }
+        }
+
+        fseek(f, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
+
+        fprintf(f, "]\n");
+
+        // Check if 'total' is all false (equivalent to numpy's array_equal to zeros)
+        bool all_false = TRUE;
+        for (int k = 0; k < factor_base_size; k++) {
+            if (total[k]) {
+                all_false = FALSE;
+                break;
+            }
+        }
+
+        assert(all_false); // Using assert to verify all values in total are false
+        printf("Dependency %d is correct with bool %d\n", j, all_false);
+
+        g_free(total); // Free the dynamically allocated memory
+    }
+
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
     return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
 
@@ -617,13 +661,13 @@ int main() {
     // int B = 2000;
     // int S = 4000000;
 
-    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    // int B = 15000;
-    // int S = 15000000;
+    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    int B = 15000;
+    int S = 15000000;
 
-    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    int B = 30000;
-    int S = 1000000000;
+    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    // int B = 30000;
+    // int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
