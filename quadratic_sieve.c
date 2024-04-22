@@ -571,6 +571,22 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     GHashTable* factor_exponent_dict = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
 
+    //save the matrix out to file
+    FILE *f_matrix = fopen("matrix_c.txt", "w");
+    for (int i = 0; i < matrix->len; i++) {
+        bool* row = g_array_index(matrix, bool*, i);
+        fprintf(f_matrix, "[");
+
+        for (int j = 0; j < factor_base_size; j++) {
+            fprintf(f_matrix, "%d ", row[j]);
+        }
+
+        fseek(f_matrix, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
+        fprintf(f_matrix, "]\n");
+    }
+    fclose(f_matrix);
+
+
     // dependencies = find_linear_dependencies(matrix_rr)
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
@@ -617,6 +633,7 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
 
         g_free(total); // Free the dynamically allocated memory
     }
+    fclose(f);
 
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
     return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
@@ -661,13 +678,13 @@ int main() {
     // int B = 2000;
     // int S = 4000000;
 
-    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    int B = 15000;
-    int S = 15000000;
+    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    // int B = 15000;
+    // int S = 15000000;
 
-    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    // int B = 30000;
-    // int S = 1000000000;
+    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    int B = 30000;
+    int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;

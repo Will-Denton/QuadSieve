@@ -266,6 +266,18 @@ def sieve(n, B, S):
 
     # save matrix to file
     # np.save("matrix.npy", matrix)
+    with open("matrix.txt", "w") as f:
+        for row in matrix:
+            f.write("[")
+            for r in row:
+                if r:
+                    f.write("1 ")
+                else:
+                    f.write("0 ")
+                # delete the last space
+            f.seek(f.tell() - 1)
+            f.write("]")
+            f.write("\n")
 
     # save dependencies to file - dependencies have different sizes so cant save as numpy array
     with open("dependencies_easy.txt", "w") as f:
@@ -314,8 +326,8 @@ def sieve(n, B, S):
 
 if __name__ == "__main__":
     # n, B, S = 16921456439215439701, 2000, 4000000
-    n, B, S = 46839566299936919234246726809, 15000, 15000000
-    # n, B, S = 6172835808641975203638304919691358469663, 30000, 1000000000
+    # n, B, S = 46839566299936919234246726809, 15000, 15000000
+    n, B, S = 6172835808641975203638304919691358469663, 30000, 1000000000
     print(f"n: {n}, factors: {sieve(n, B, S)}")
 
     # n2 = 16921456439215439701
