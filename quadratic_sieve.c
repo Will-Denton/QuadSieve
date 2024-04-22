@@ -116,6 +116,7 @@ void ceil_sqrt(mpz_t result, const mpz_t n) {
 double* get_sieve_log(int S, mpz_t n) {
     puts("Starting get_sieve_log...");
 
+    // root_n = np.float64(np.ceil(math.sqrt(n)))
     mpz_t root_n_mpz;
     ceil_sqrt(root_n_mpz, n);
     double root_n = mpz_get_d(root_n_mpz);
@@ -127,31 +128,33 @@ double* get_sieve_log(int S, mpz_t n) {
         exit(1);
     }
 
-    mpz_t b;
-    mpz_init(b);
-    mpfr_t b_r;
-    mpfr_init2(b_r, 255);
-
-    for(int i=0; i<S; i++) {
-        mpz_set_si(b, i);
-        mpz_add(b, b, root_n_mpz);
-        mpz_mul(b, b, b);
-        mpz_sub(b, b, n);
-
-        mpfr_set_z(b_r, b, MPFR_RNDN);  // Convert mpz_t to mpfr_t
-        mpfr_log(b_r, b_r, MPFR_RNDN);  // Compute the natural logarithm of b
-
-        // convert b_r to a double
-        double b_d = mpfr_get_d(b_r, MPFR_RNDN);
-        sieve[i] = b_d;
+    for (int i = 0; i < S; i++) {
+        double current = i + root_n;
+        double value = current * current - mpz_get_d(n);
+        sieve[i] = log(value);
     }
 
     // Clean up
     mpz_clear(root_n_mpz);
-    mpz_clear(b);
-    mpfr_clear(b_r);
 
     return sieve;
+}
+
+void get_sieve(int S, mpz_t n, GArray* sieve) {
+    puts("Starting get_sieve...");
+
+    mpz_t root_n_mpz;
+    ceil_sqrt(root_n_mpz, n);
+    double root_n = mpz_get_d(root_n_mpz);
+
+    for (int i = 0; i < S; i++) {
+        mpz_t* b = g_new(mpz_t, 1);
+        mpz_init(*b);
+        mpz_add_ui(*b, root_n_mpz, i);
+        mpz_mul(*b, *b, *b);
+        mpz_sub(*b, *b, n);
+        g_array_append_val(sieve, b);
+    }
 }
 
 void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
@@ -262,6 +265,54 @@ void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, do
     mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
 }
 
+void sieve_primes(mpz_t n, int* factor_base, int factor_base_size, int S, GArray* log_sieve) {
+    puts("Starting sieve_primes...");
+
+    mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
+    ceil_sqrt(root_n, n);
+    mpz_inits(tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
+
+    for (int i=0; i<factor_base_size; i++) {
+        int p = factor_base[i];
+        mpz_set_ui(p_mpz, p);
+
+        int root_mod_p_1 = -1;
+        int root_mod_p_2 = -1;
+        shanks_tonelli(n, p, &root_mod_p_1, &root_mod_p_2);
+        if (root_mod_p_1 != -1) {
+            mpz_set_ui(root_mod_p_1_mpz, root_mod_p_1);
+            mpz_sub(tmp, root_mod_p_1_mpz, root_n);
+            mpz_mod(tmp, tmp, p_mpz);
+            int x = mpz_get_si(tmp);
+
+            mpz_t p_mpz;
+            for (int j=x; j<S; j+=p) {
+                //divide index j by p
+                mpz_t* value = g_array_index(log_sieve, mpz_t*, j);
+                mpz_init_set_ui(p_mpz, p);
+                mpz_divexact(*value, *value, p_mpz);
+            }
+            mpz_clear(p_mpz);
+        }
+        if (root_mod_p_2 != -1) {
+            // Calculate x = (root_mod_p_2 - root_n) % p
+            mpz_set_ui(root_mod_p_2_mpz, root_mod_p_2);
+            mpz_sub(tmp, root_mod_p_2_mpz, root_n);
+            mpz_mod(tmp, tmp, p_mpz);
+            int x = mpz_get_si(tmp);
+
+            for (int j=x; j<S; j+=p) {
+                //divide index j by p
+                mpz_t* value = g_array_index(log_sieve, mpz_t*, j);
+                mpz_init_set_ui(p_mpz, p);
+                mpz_divexact(*value, *value, p_mpz);
+            }
+        }
+    }
+
+    mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
+}
+
 int* get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, int* factors_size) {
     // trial division to find the factors of b
     int* factors = malloc(factor_base_size * sizeof(int));
@@ -314,8 +365,8 @@ void get_factor_vector(int* factors, int factors_size, int* factor_base, int fac
     g_hash_table_destroy(lookup_factor_index);
 }
 
-void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
-    puts("Starting create_matrix...");
+void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
+    puts("Starting create_matrix_log...");
 
     double epsilon = 0.0001;
 
@@ -325,6 +376,66 @@ void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base
     for (int i=0; i<sieve_size; i++) {
         // TODO: Can do this in an earlier step
         if (sieve[i] < epsilon) {
+            compute_b(b, i, root_n, n);
+            int factors_size;
+            int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
+
+            int* exponent_vector = calloc(factor_base_size, sizeof(int));
+            if (exponent_vector == NULL) {
+                puts("ERROR: Unable to allocate memory for exponent_vector.");
+                exit(1);
+            }
+            get_factor_vector(factors, factors_size, factor_base, factor_base_size, exponent_vector);
+
+            bool* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(bool));
+            if (exponent_vector_mod_2 == NULL) {
+                puts("ERROR: Unable to allocate memory for exponent_vector_mod_2.");
+                exit(1);
+            }
+            int sum = 0;
+            for (int j=0; j<factor_base_size; j++) {
+                int mod_2 = exponent_vector[j] % 2;
+                sum += mod_2;
+                exponent_vector_mod_2[j] = mod_2;
+            }
+            if (sum == 0) {
+                continue;
+            }
+
+            // matrix.append(exponent_vector_mod_2)
+            g_array_append_val(matrix, exponent_vector_mod_2);
+
+            // as_vector.append(i + root_n)
+            mpz_t* i_plus_root_n = g_new(mpz_t, 1);
+            mpz_init(*i_plus_root_n);
+            mpz_add_ui(*i_plus_root_n, root_n, i);
+            g_array_append_val(as_vector, i_plus_root_n);
+
+            // factor_exponent_dict[i + root_n] = exponent_vector
+            char* key_str = mpz_get_str(NULL, 10, *i_plus_root_n);
+            g_hash_table_insert(factor_exponent_dict, key_str, exponent_vector);
+
+            if (matrix->len >= 2*factor_base_size) {
+                break;
+            }
+
+            free(factors);
+        }
+    }
+
+    mpz_clear(b);
+}
+
+void create_matrix(GArray* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
+    puts("Starting create_matrix...");
+
+    mpz_t b;
+    mpz_init(b);
+
+    for (int i=0; i<sieve_size; i++) {
+        // TODO: Can do this in an earlier step
+        mpz_t* val = g_array_index(sieve, mpz_t*, i);
+        if (mpz_cmp_ui(*val, 1) == 0) {
             compute_b(b, i, root_n, n);
             int factors_size;
             int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
@@ -538,7 +649,7 @@ void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* 
     mpz_clears(as_product, primes_product, f, a, NULL);
 }
 
-void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
+void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     /*
     root_n = math.ceil(math.sqrt(n))
     */
@@ -565,112 +676,100 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     // This might be due to floating point precision issues
     double* sieve = get_sieve_log(S, n); // size S
 
-    printf("sieve[0]: %f\n", sieve[0]);
-
     /*
     sieve_primes_log(n, factor_base, S, sieve)
     */
     sieve_primes_log(n, factor_base, factor_base_size, S, sieve);
 
     /*
-    matrix, as_vector, factor_exponent_dict = create_matrix(sieve, root_n, factor_base, n)
+    matrix, as_vector, factor_exponent_dict = create_matrix_log(sieve, root_n, factor_base, n)
+    */
+    GArray* matrix = g_array_new(FALSE, FALSE, sizeof(bool*));
+    GArray* as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
+    GHashTable* factor_exponent_dict = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    create_matrix_log(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
+
+    GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
+    find_linear_dependencies(dependencies, matrix, factor_base_size);
+
+    // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
+    return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
+
+    /*
+    Free memory
+    */
+    // matrix
+    for (int i = 0; i < matrix->len; i++) {
+        free(g_array_index(matrix, bool*, i));
+    }
+    g_array_free(matrix, TRUE);
+
+    // as_vector
+    for (int i = 0; i < as_vector->len; i++) {
+        mpz_t* value = g_array_index(as_vector, mpz_t*, i);
+        mpz_clear(*value);
+        g_free(value);
+    }
+    g_array_free(as_vector, TRUE);
+
+    // dependencies
+    for (int i = 0; i < dependencies->len; i++) {
+        GArray* inner_array = g_array_index(dependencies, GArray*, i);
+        g_array_free(inner_array, TRUE);
+    }
+    g_array_free(dependencies, TRUE);
+
+    g_hash_table_destroy(factor_exponent_dict);
+
+    free(primes_under_B);
+    free(factor_base);
+    free(sieve);
+    mpz_clear(root_n);
+}
+
+void sieve_int(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
+    /*
+    root_n = math.ceil(math.sqrt(n))
+    */
+    mpz_t root_n;
+    mpz_init(root_n);
+    ceil_sqrt(root_n, n);
+
+    /*
+    primes_under_B = sieve_of_eratosthenes(B)
+    */
+    int num_primes_under_B;
+    int* primes_under_B = sieve_of_eratosthenes(B, &num_primes_under_B);
+
+    /*
+    factor_base = get_factor_base(primes_under_B, n)
+    */
+    int factor_base_size;
+    int* factor_base = get_factor_base(primes_under_B, num_primes_under_B, n, &factor_base_size);
+
+    /*
+    sieve = get_sieve_log(S, n)
+    */
+    // NOTE: We get slightly different results here than the Python code
+    // This might be due to floating point precision issues
+    GArray* sieve = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
+    get_sieve(S, n, sieve); // size S
+
+    /*
+    sieve_primes_log(n, factor_base, S, sieve)
+    */
+    sieve_primes(n, factor_base, factor_base_size, S, sieve);
+
+    /*
+    matrix, as_vector, factor_exponent_dict = create_matrix_log(sieve, root_n, factor_base, n)
     */
     GArray* matrix = g_array_new(FALSE, FALSE, sizeof(bool*));
     GArray* as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
     GHashTable* factor_exponent_dict = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
 
-    //save the matrix out to file
-    FILE *f_matrix = fopen("matrix_c.txt", "w");
-    // for (int i = 0; i < matrix->len; i++) {
-    //     bool* row = g_array_index(matrix, bool*, i);
-    //     fprintf(f_matrix, "[");
-
-    //     for (int j = 0; j < factor_base_size; j++) {
-    //         fprintf(f_matrix, "%d ", row[j]);
-    //     }
-
-    //     fseek(f_matrix, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
-    //     fprintf(f_matrix, "]\n");
-    // }
-    // fclose(f_matrix);
-
-    // dependencies = find_linear_dependencies(matrix_rr)
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
-
-    //write dependencies to file
-    // FILE *f = fopen("dependencies_c_easy.txt", "w");
-    // for (int j = 0; j < dependencies->len; j++) {
-    //     GArray* d = g_array_index(dependencies, GArray*, j);
-    //     fprintf(f, "[");
-    //     for (int i = 0; i < d->len; i++) {
-    //         int index = g_array_index(d, int, i);
-    //         fprintf(f, "%d, ", index);  
-    //     }
-    //     fseek(f, -2, SEEK_CUR);
-    //     fprintf(f, "]\n");
-    // }
-    // fclose(f);
-
-    // Do the assert statements here
-    // First check to make sure the dependencies are actually linearly independent
-    for (int j = 0; j < dependencies->len; j++) {
-        GArray* d = g_array_index(dependencies, GArray*, j);
-        bool* total = g_malloc0(factor_base_size * sizeof(bool)); // Initialize a new boolean array to false (equivalent to zeros in numpy)   
-
-        for (int i = 0; i < d->len; i++) {
-            int index = g_array_index(d, int, i);
-            bool* row = g_array_index(matrix, bool*, index);
-
-            // Perform bitwise XOR on each element of the row with 'total'
-            for (int k = 0; k < factor_base_size; k++) {
-                total[k] ^= row[k]; // XOR operation
-            }
-        }
-
-        // Check if 'total' is all false (equivalent to numpy's array_equal to zeros)
-        bool all_false = TRUE;
-        for (int k = 0; k < factor_base_size; k++) {
-            if (total[k]) {
-                all_false = FALSE;
-                break;
-            }
-        }
-
-        assert(all_false); // Using assert to verify all values in total are false
-        // printf("Dependency %d is correct with bool %d\n", j, all_false);
-
-        g_free(total); // Free the dynamically allocated memory
-    }
-
-    // Then check that prime factors actually multiply to b
-    for (int i = 0; i < matrix->len; i++) {
-        mpz_t* a = g_array_index(as_vector, mpz_t*, i);
-        mpz_t calc_b;
-        mpz_init(calc_b);
-        mpz_mul(calc_b, *a, *a);
-        mpz_sub(calc_b, calc_b, n);
-
-        char* key_str = mpz_get_str(NULL, 10, *a);
-        int* f = g_hash_table_lookup(factor_exponent_dict, key_str);
-        mpz_t primes_product;
-        mpz_init_set_ui(primes_product, 1);
-
-        mpz_t temp, p;
-        mpz_init(temp);
-        mpz_init(p);
-
-        for (int j = 0; j < factor_base_size; j++) {
-            mpz_set_ui(p, factor_base[j]); // Set p to the current base
-            mpz_pow_ui(temp, p, f[j]);     // temp = p^f[j]
-            mpz_mul(primes_product, primes_product, temp); // primes_product *= temp
-        }
-
-        printf("Matrix row %d has Primes product: %s is correct with b: %s and a:%s\n", i, mpz_get_str(NULL, 10, primes_product), mpz_get_str(NULL, 10, calc_b), key_str);
-        assert(mpz_cmp(primes_product, calc_b) == 0); // Using assert to verify that the prime factors actually multiply to b
-
-    }
 
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
     return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
@@ -711,42 +810,17 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    mpz_set_str(n, "16921456439215439701", 10); // base 10
-    int B = 2000;
-    int S = 4000000;
+    // mpz_set_str(n, "16921456439215439701", 10); // base 10
+    // int B = 2000;
+    // int S = 4000000;
 
     // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
     // int B = 15000;
     // int S = 15000000;
 
-    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    // int B = 30000;
-    // int S = 1000000000;
-
-    mpz_t root_n_mpz;
-    ceil_sqrt(root_n_mpz, n);
-    double root_n = mpz_get_d(root_n_mpz);
-
-    double current = root_n;
-    double value = current * current - mpz_get_d(n);
-    printf("sieve[0]: %f\n", log(value));
-
-    mpz_t b;
-    mpz_init(b);
-    mpz_set_si(b, 0);
-    mpz_add(b, b, root_n_mpz);
-    mpz_mul(b, b, b);
-    mpz_sub(b, b, n);
-
-    mpfr_t b_r;
-    mpfr_init2(b_r, 255);
-    mpfr_set_z(b_r, b, MPFR_RNDN);  // Convert mpz_t to mpfr_t
-    mpfr_log(b_r, b_r, MPFR_RNDN);  // Compute the natural logarithm of b
-
-    // convert b_r to a double
-    double b_d = mpfr_get_d(b_r, MPFR_RNDN);
-
-    printf("Logarithm of b is: %f\n", b_d);
+    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    int B = 30000;
+    int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
@@ -754,7 +828,12 @@ int main() {
     mpz_t factor2;
     mpz_init(factor2);
 
-    sieve(n, B, S, factor1, factor2);
+    puts("SIEVE INT:");
+    sieve_int(n, B, S, factor1, factor2);
+    gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
+
+    puts("SIEVE LOG:");
+    sieve_log(n, B, S, factor1, factor2);
     gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
     // Clear memory
