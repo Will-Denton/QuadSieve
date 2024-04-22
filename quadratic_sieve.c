@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <glib.h>
 #include <assert.h>
+#include <mpfr.h>
 
 int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
     // Initialize array of booleans
@@ -115,7 +116,6 @@ void ceil_sqrt(mpz_t result, const mpz_t n) {
 double* get_sieve_log(int S, mpz_t n) {
     puts("Starting get_sieve_log...");
 
-    // root_n = np.float64(np.ceil(math.sqrt(n)))
     mpz_t root_n_mpz;
     ceil_sqrt(root_n_mpz, n);
     double root_n = mpz_get_d(root_n_mpz);
@@ -127,14 +127,29 @@ double* get_sieve_log(int S, mpz_t n) {
         exit(1);
     }
 
-    for (int i = 0; i < S; i++) {
-        double current = i + root_n;
-        double value = current * current - mpz_get_d(n);
-        sieve[i] = log(value);
+    mpz_t b;
+    mpz_init(b);
+    mpfr_t b_r;
+    mpfr_init2(b_r, 255);
+
+    for(int i=0; i<S; i++) {
+        mpz_set_si(b, i);
+        mpz_add(b, b, root_n_mpz);
+        mpz_mul(b, b, b);
+        mpz_sub(b, b, n);
+
+        mpfr_set_z(b_r, b, MPFR_RNDN);  // Convert mpz_t to mpfr_t
+        mpfr_log(b_r, b_r, MPFR_RNDN);  // Compute the natural logarithm of b
+
+        // convert b_r to a double
+        double b_d = mpfr_get_d(b_r, MPFR_RNDN);
+        sieve[i] = b_d;
     }
 
     // Clean up
     mpz_clear(root_n_mpz);
+    mpz_clear(b);
+    mpfr_clear(b_r);
 
     return sieve;
 }
@@ -302,7 +317,7 @@ void get_factor_vector(int* factors, int factors_size, int* factor_base, int fac
 void create_matrix(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
     puts("Starting create_matrix...");
 
-    double epsilon = 0.01;
+    double epsilon = 0.0001;
 
     mpz_t b;
     mpz_init(b);
@@ -529,15 +544,7 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     */
     mpz_t root_n;
     mpz_init(root_n);
-
-    mpf_t n_f;
-    mpf_init(n_f);
-    mpf_set_z(n_f, n);
-
-    mpf_sqrt(n_f, n_f);
-    mpf_ceil(n_f, n_f);
-    mpz_set_f(root_n, n_f);
-    mpf_clear(n_f);
+    ceil_sqrt(root_n, n);
 
     /*
     primes_under_B = sieve_of_eratosthenes(B)
@@ -558,6 +565,8 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     // This might be due to floating point precision issues
     double* sieve = get_sieve_log(S, n); // size S
 
+    printf("sieve[0]: %f\n", sieve[0]);
+
     /*
     sieve_primes_log(n, factor_base, S, sieve)
     */
@@ -572,7 +581,7 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
 
     //save the matrix out to file
-    // FILE *f_matrix = fopen("matrix_c.txt", "w");
+    FILE *f_matrix = fopen("matrix_c.txt", "w");
     // for (int i = 0; i < matrix->len; i++) {
     //     bool* row = g_array_index(matrix, bool*, i);
     //     fprintf(f_matrix, "[");
@@ -586,13 +595,23 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     // }
     // fclose(f_matrix);
 
-
     // dependencies = find_linear_dependencies(matrix_rr)
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
     //write dependencies to file
     // FILE *f = fopen("dependencies_c_easy.txt", "w");
+    // for (int j = 0; j < dependencies->len; j++) {
+    //     GArray* d = g_array_index(dependencies, GArray*, j);
+    //     fprintf(f, "[");
+    //     for (int i = 0; i < d->len; i++) {
+    //         int index = g_array_index(d, int, i);
+    //         fprintf(f, "%d, ", index);  
+    //     }
+    //     fseek(f, -2, SEEK_CUR);
+    //     fprintf(f, "]\n");
+    // }
+    // fclose(f);
 
     // Do the assert statements here
     // First check to make sure the dependencies are actually linearly independent
@@ -600,24 +619,15 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
         GArray* d = g_array_index(dependencies, GArray*, j);
         bool* total = g_malloc0(factor_base_size * sizeof(bool)); // Initialize a new boolean array to false (equivalent to zeros in numpy)   
 
-        // fprintf(f, "[");
-
         for (int i = 0; i < d->len; i++) {
             int index = g_array_index(d, int, i);
             bool* row = g_array_index(matrix, bool*, index);
-
-            // Write d to file
-            // fprintf(f, "%d, ", index);
-
 
             // Perform bitwise XOR on each element of the row with 'total'
             for (int k = 0; k < factor_base_size; k++) {
                 total[k] ^= row[k]; // XOR operation
             }
         }
-
-        // fseek(f, -2, SEEK_CUR); // Move the cursor back two characters to remove the last comma and space
-        // fprintf(f, "]\n");
 
         // Check if 'total' is all false (equivalent to numpy's array_equal to zeros)
         bool all_false = TRUE;
@@ -629,14 +639,12 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
         }
 
         assert(all_false); // Using assert to verify all values in total are false
-        printf("Dependency %d is correct with bool %d\n", j, all_false);
+        // printf("Dependency %d is correct with bool %d\n", j, all_false);
 
         g_free(total); // Free the dynamically allocated memory
     }
-    // fclose(f);
 
     // Then check that prime factors actually multiply to b
-
     for (int i = 0; i < matrix->len; i++) {
         mpz_t* a = g_array_index(as_vector, mpz_t*, i);
         mpz_t calc_b;
@@ -659,7 +667,7 @@ void sieve(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
             mpz_mul(primes_product, primes_product, temp); // primes_product *= temp
         }
 
-        printf("Primes product: %s is correct with b: %s\n", mpz_get_str(NULL, 10, primes_product), mpz_get_str(NULL, 10, calc_b));
+        printf("Matrix row %d has Primes product: %s is correct with b: %s and a:%s\n", i, mpz_get_str(NULL, 10, primes_product), mpz_get_str(NULL, 10, calc_b), key_str);
         assert(mpz_cmp(primes_product, calc_b) == 0); // Using assert to verify that the prime factors actually multiply to b
 
     }
@@ -703,17 +711,42 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    // mpz_set_str(n, "16921456439215439701", 10); // base 10
-    // int B = 2000;
-    // int S = 4000000;
+    mpz_set_str(n, "16921456439215439701", 10); // base 10
+    int B = 2000;
+    int S = 4000000;
 
     // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
     // int B = 15000;
     // int S = 15000000;
 
-    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    int B = 30000;
-    int S = 1000000000;
+    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    // int B = 30000;
+    // int S = 1000000000;
+
+    mpz_t root_n_mpz;
+    ceil_sqrt(root_n_mpz, n);
+    double root_n = mpz_get_d(root_n_mpz);
+
+    double current = root_n;
+    double value = current * current - mpz_get_d(n);
+    printf("sieve[0]: %f\n", log(value));
+
+    mpz_t b;
+    mpz_init(b);
+    mpz_set_si(b, 0);
+    mpz_add(b, b, root_n_mpz);
+    mpz_mul(b, b, b);
+    mpz_sub(b, b, n);
+
+    mpfr_t b_r;
+    mpfr_init2(b_r, 255);
+    mpfr_set_z(b_r, b, MPFR_RNDN);  // Convert mpz_t to mpfr_t
+    mpfr_log(b_r, b_r, MPFR_RNDN);  // Compute the natural logarithm of b
+
+    // convert b_r to a double
+    double b_d = mpfr_get_d(b_r, MPFR_RNDN);
+
+    printf("Logarithm of b is: %f\n", b_d);
 
     // Nontrivial factors of n
     mpz_t factor1;
