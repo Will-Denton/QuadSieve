@@ -120,6 +120,9 @@ double* get_sieve_log(int S, mpz_t n) {
     mpz_t root_n_mpz;
     ceil_sqrt(root_n_mpz, n);
     double root_n = mpz_get_d(root_n_mpz);
+    mpz_clear(root_n_mpz);
+
+    double n_double = mpz_get_d(n);
 
     // Create sieve
     double* sieve = malloc(S * sizeof(double));
@@ -128,14 +131,11 @@ double* get_sieve_log(int S, mpz_t n) {
         exit(1);
     }
 
-    for (int i = 0; i < S; i++) {
-        double current = i + root_n;
-        double value = current * current - mpz_get_d(n);
-        sieve[i] = log(value);
+    __float128 current = root_n;
+    for (int i = 0; i < S; i++, current += 1.0) {
+        __float128 value = current * current - n_double;
+        sieve[i] = (double) log(value);
     }
-
-    // Clean up
-    mpz_clear(root_n_mpz);
 
     return sieve;
 }
@@ -828,9 +828,9 @@ int main() {
     mpz_t factor2;
     mpz_init(factor2);
 
-    puts("SIEVE INT:");
-    sieve_int(n, B, S, factor1, factor2);
-    gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
+    // puts("SIEVE INT:");
+    // sieve_int(n, B, S, factor1, factor2);
+    // gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
     puts("SIEVE LOG:");
     sieve_log(n, B, S, factor1, factor2);
