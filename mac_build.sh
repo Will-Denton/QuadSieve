@@ -1,6 +1,6 @@
 set -e
 
-gcc quadratic_sieve.c -o quadratic_sieve \
+/opt/homebrew/Cellar/gcc/13.2.0/bin/gcc-13 quadratic_sieve.c -o quadratic_sieve \
 -I /opt/homebrew/opt/gmp/include \
 -L /opt/homebrew/opt/gmp/lib \
 -lgmp \
