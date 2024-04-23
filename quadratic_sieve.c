@@ -349,7 +349,7 @@ void get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, GArra
     // trial division to find the factors of b
     for (int i = 0; i < factor_base_size; i++) {
         int p = factor_base[i];
-        while (mpz_divisible_ui_p(b, p) != 0) {
+        while (mpz_divisible_ui_p(b, p) != 0 && mpz_cmp_ui(b, 0) != 0) {
             mpz_divexact_ui(b, b, p); // fast since we know it's divisible
             g_array_append_val(factors, p);
         }
