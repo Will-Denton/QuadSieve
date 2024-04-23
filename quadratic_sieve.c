@@ -838,17 +838,17 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    mpz_set_str(n, "16", 10); // base 10
-    int B = 2000;
-    int S = 4000000;
+    // mpz_set_str(n, "16", 10); // base 10
+    // int B = 2000;
+    // int S = 4000000;
 
     // mpz_set_str(n, "8874250803582746783070560681", 10); // base 10
     // int B = 15000;
     // int S = 15000000;
 
-    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    // int B = 15000;
-    // int S = 15000000;
+    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
+    int B = 15000;
+    int S = 15000000;
 
     // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
     // int B = 30000;
@@ -865,7 +865,15 @@ int main() {
     mpz_init(factor2);
 
     puts("SIEVEING:");
-    sieve_log(n, B, S, factor1, factor2);
+
+    if (mpz_perfect_square_p(n) != 0) {
+        gmp_printf("n: %Zd is a perfect square.\n", n);
+        mpz_sqrt(factor1, n);
+        mpz_set(factor2, factor1);
+    } else {
+        sieve_log(n, B, S, factor1, factor2);
+    }
+
     gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
     // Clear memory
