@@ -134,7 +134,11 @@ double* get_sieve_log(int S, mpz_t n) {
     __float128 current = root_n;
     for (int i = 0; i < S; i++, current += 1.0) {
         __float128 value = current * current - n_double;
-        sieve[i] = (double) log(value);
+        if (value <= 0) {
+            sieve[i] = 0.0;
+        } else {
+            sieve[i] = (double) log(value);
+        }
     }
 
     return sieve;
@@ -409,7 +413,7 @@ void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_
                 break;
             }
 
-            free(factors);
+            g_array_free(factors, TRUE);
         }
     }
 
@@ -473,7 +477,7 @@ void create_matrix(GArray* sieve, int sieve_size, mpz_t root_n, int* factor_base
                 break;
             }
 
-            free(factors);
+            g_array_free(factors, TRUE);
         }
     }
 
@@ -804,17 +808,17 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    // mpz_set_str(n, "16921456439215439701", 10); // base 10
-    // int B = 2000;
-    // int S = 4000000;
+    mpz_set_str(n, "16921456439215439701", 10); // base 10
+    int B = 2000;
+    int S = 4000000;
 
     // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
     // int B = 15000;
     // int S = 15000000;
 
-    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    int B = 30000;
-    int S = 1000000000;
+    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    // int B = 30000;
+    // int S = 1000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
