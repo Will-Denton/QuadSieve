@@ -345,30 +345,15 @@ void sieve_primes(mpz_t n, int* factor_base, int factor_base_size, int S, GArray
     mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
 }
 
-int* get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, int* factors_size) {
+void get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, GArray* factors) {
     // trial division to find the factors of b
-    int* factors = malloc(factor_base_size * sizeof(int));
-    if (factors == NULL) {
-        puts("ERROR: Unable to allocate memory for factors.");
-        exit(1);
-    }
-
-    *factors_size = 0;
     for (int i = 0; i < factor_base_size; i++) {
         int p = factor_base[i];
         while (mpz_divisible_ui_p(b, p) != 0) {
             mpz_divexact_ui(b, b, p); // fast since we know it's divisible
-            factors[(*factors_size)++] = p;
+            g_array_append_val(factors, p);
         }
     }
-
-    // Resize the array to the actual size needed
-    if (*factors_size < factor_base_size) {
-        int* resized_factors = realloc(factors, (*factors_size) * sizeof(int));
-        factors = resized_factors;
-    }
-
-    return factors;
 }
 
 void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
@@ -382,15 +367,16 @@ void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
     mpz_sub(b, b, n);
 }
 
-void get_factor_vector(int* factors, int factors_size, int* factor_base, int factor_base_size, int* exponent_vector) {
+void get_factor_vector(GArray* factors, int* factor_base, int factor_base_size, int* exponent_vector) {
     // create a vector of the exponents of the factors in the factor base
     GHashTable* lookup_factor_index = g_hash_table_new(NULL, NULL);
     for (int i=0; i<factor_base_size; i++) {
         g_hash_table_insert(lookup_factor_index, GINT_TO_POINTER(factor_base[i]), GINT_TO_POINTER(i));
     }
 
-    for (int i = 0; i < factors_size; i++) {
-        int key = GPOINTER_TO_INT(g_hash_table_lookup(lookup_factor_index, GINT_TO_POINTER(factors[i])));
+    for (int i = 0; i < factors->len; i++) {
+        int factor = g_array_index(factors, int, i);
+        int key = GPOINTER_TO_INT(g_hash_table_lookup(lookup_factor_index, GINT_TO_POINTER(factor)));
         exponent_vector[key] += 1;
     }
 
@@ -409,15 +395,19 @@ void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_
         // TODO: Can do this in an earlier step
         if (sieve[i] < epsilon) {
             compute_b(b, i, root_n, n);
-            int factors_size;
-            int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
+            GArray* factors = g_array_new(FALSE, FALSE, sizeof(int));
+            if (factors == NULL) {
+                puts("ERROR: Unable to allocate GArray for factors.");
+                exit(1);
+            }
+            get_B_smooth_factors(b, factor_base, factor_base_size, factors);
 
             int* exponent_vector = calloc(factor_base_size, sizeof(int));
             if (exponent_vector == NULL) {
                 puts("ERROR: Unable to allocate memory for exponent_vector.");
                 exit(1);
             }
-            get_factor_vector(factors, factors_size, factor_base, factor_base_size, exponent_vector);
+            get_factor_vector(factors, factor_base, factor_base_size, exponent_vector);
 
             bool* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(bool));
             if (exponent_vector_mod_2 == NULL) {
@@ -451,7 +441,7 @@ void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_
                 break;
             }
 
-            free(factors);
+            g_array_free(factors, TRUE);
         }
     }
 
@@ -469,15 +459,19 @@ void create_matrix(GArray* sieve, int sieve_size, mpz_t root_n, int* factor_base
         mpz_t* val = g_array_index(sieve, mpz_t*, i);
         if (mpz_cmp_ui(*val, 1) == 0) {
             compute_b(b, i, root_n, n);
-            int factors_size;
-            int* factors = get_B_smooth_factors(b, factor_base, factor_base_size, &factors_size);
+            GArray* factors = g_array_new(FALSE, FALSE, sizeof(int));
+            if (factors == NULL) {
+                puts("ERROR: Unable to allocate GArray for factors.");
+                exit(1);
+            }
+            get_B_smooth_factors(b, factor_base, factor_base_size, factors);
 
             int* exponent_vector = calloc(factor_base_size, sizeof(int));
             if (exponent_vector == NULL) {
                 puts("ERROR: Unable to allocate memory for exponent_vector.");
                 exit(1);
             }
-            get_factor_vector(factors, factors_size, factor_base, factor_base_size, exponent_vector);
+            get_factor_vector(factors, factor_base, factor_base_size, exponent_vector);
 
             bool* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(bool));
             if (exponent_vector_mod_2 == NULL) {
@@ -511,7 +505,7 @@ void create_matrix(GArray* sieve, int sieve_size, mpz_t root_n, int* factor_base
                 break;
             }
 
-            free(factors);
+            g_array_free(factors, TRUE);
         }
     }
 
@@ -844,9 +838,9 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    // mpz_set_str(n, "16921456439215439701", 10); // base 10
-    // int B = 2000;
-    // int S = 4000000;
+    mpz_set_str(n, "16", 10); // base 10
+    int B = 2000;
+    int S = 4000000;
 
     // mpz_set_str(n, "8874250803582746783070560681", 10); // base 10
     // int B = 15000;
@@ -856,9 +850,9 @@ int main() {
     // int B = 15000;
     // int S = 15000000;
 
-    mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    int B = 30000;
-    int S = 1000000000;
+    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
+    // int B = 30000;
+    // int S = 1000000000;
 
     // mpz_set_str(n, "3744843080529615909019181510330554205500926021947", 10); // base 10
     // int B = 5000;
