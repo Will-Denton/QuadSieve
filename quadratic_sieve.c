@@ -6,6 +6,7 @@
 #include <glib.h>
 #include <assert.h>
 #include <mpfr.h>
+#include <pthread.h>
 
 int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
     // Initialize array of booleans
@@ -113,6 +114,25 @@ void ceil_sqrt(mpz_t result, const mpz_t n) {
     }
 }
 
+typedef struct {
+    int start;
+    int end;
+    __float128 start_val;
+    double n_double;
+    double* sieve;
+} ThreadData;
+
+
+void* compute_sieve(void* arg) {
+    ThreadData* data = (ThreadData*)arg;
+    __float128 current = data->start_val;
+    for (int i = data->start; i < data->end; i++, current += 1.0) {
+        __float128 value = current * current - data->n_double;
+        data->sieve[i] = (double) log(value);
+    }
+    return NULL;
+}
+
 double* get_sieve_log(int S, mpz_t n) {
     puts("Starting get_sieve_log...");
 
@@ -121,7 +141,6 @@ double* get_sieve_log(int S, mpz_t n) {
     ceil_sqrt(root_n_mpz, n);
     double root_n = mpz_get_d(root_n_mpz);
     mpz_clear(root_n_mpz);
-
     double n_double = mpz_get_d(n);
 
     // Create sieve
@@ -131,10 +150,23 @@ double* get_sieve_log(int S, mpz_t n) {
         exit(1);
     }
 
+    int num_threads = 8;
+    pthread_t threads[num_threads];
+    ThreadData thread_data[num_threads];
+    int length_per_thread = S / num_threads;
+    
     __float128 current = root_n;
-    for (int i = 0; i < S; i++, current += 1.0) {
-        __float128 value = current * current - n_double;
-        sieve[i] = (double) log(value);
+    for (int i = 0; i < num_threads; i++) {
+        thread_data[i].start = i * length_per_thread;
+        thread_data[i].end = (i == num_threads - 1) ? S : (i + 1) * length_per_thread;
+        thread_data[i].start_val = current + i * length_per_thread;
+        thread_data[i].n_double = n_double;
+        thread_data[i].sieve = sieve;
+        pthread_create(&threads[i], NULL, compute_sieve, &thread_data[i]);
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+        pthread_join(threads[i], NULL);
     }
 
     return sieve;
@@ -692,6 +724,8 @@ void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
+    printf("Number of dependencies: %d\n with matrix shape: %d x %d\n", dependencies->len, matrix->len, factor_base_size);
+
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
     return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
 
@@ -814,6 +848,10 @@ int main() {
     // int B = 2000;
     // int S = 4000000;
 
+    // mpz_set_str(n, "8874250803582746783070560681", 10); // base 10
+    // int B = 15000;
+    // int S = 15000000;
+
     // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
     // int B = 15000;
     // int S = 15000000;
@@ -822,17 +860,17 @@ int main() {
     int B = 30000;
     int S = 1000000000;
 
+    // mpz_set_str(n, "3744843080529615909019181510330554205500926021947", 10); // base 10
+    // int B = 5000;
+    // int S = 3000000000;
+
     // Nontrivial factors of n
     mpz_t factor1;
     mpz_init(factor1);
     mpz_t factor2;
     mpz_init(factor2);
 
-    // puts("SIEVE INT:");
-    // sieve_int(n, B, S, factor1, factor2);
-    // gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
-
-    puts("SIEVE LOG:");
+    puts("SIEVEING:");
     sieve_log(n, B, S, factor1, factor2);
     gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
