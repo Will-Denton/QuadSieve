@@ -134,11 +134,7 @@ double* get_sieve_log(int S, mpz_t n) {
     __float128 current = root_n;
     for (int i = 0; i < S; i++, current += 1.0) {
         __float128 value = current * current - n_double;
-        if (value <= 0) {
-            sieve[i] = 0.0;
-        } else {
-            sieve[i] = (double) log(value);
-        }
+        sieve[i] = (double) log(value);
     }
 
     return sieve;
@@ -808,7 +804,7 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    mpz_set_str(n, "16921456439215439701", 10); // base 10
+    mpz_set_str(n, "16", 10); // base 10
     int B = 2000;
     int S = 4000000;
 
