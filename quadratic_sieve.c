@@ -9,14 +9,16 @@
 #include <pthread.h>
 
 int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
+    /*
+    Runs the sieve of eratosthenes algorithm to find all primes < B.
+    */
+
     // Initialize array of booleans
     bool* is_prime = malloc((B + 1) * sizeof(bool));
     if (is_prime == NULL) {
         puts("ERROR: Unable to allocate memory for is_prime.");
         exit(1);
     }
-    // TODO: Calloc is faster than malloc + loop
-    // TODO: We can use a bit array instead of a boolean array
     for (int i = 0; i < B + 1; i++) {
         is_prime[i] = true;
     }
@@ -58,7 +60,11 @@ int* sieve_of_eratosthenes(int B, int* num_primes_under_B) {
     return primes_under_B;
 }
 
+
 int quadratic_residue(mpz_t n, int p) {
+    /*
+    Calculates the legendre symbol (n/p) = n^((p-1)/2) mod p.
+    */
     if (p == 0) {
         return 1;
     }
@@ -81,14 +87,22 @@ int quadratic_residue(mpz_t n, int p) {
     return res;
 }
 
+
 int* get_factor_base(int* primes, int num_primes, mpz_t n, int* factor_base_size) {
-    // NOTE: We are temporarily allocating more memory than we need here
+    /*
+    Creates the factor base for the quadratic sieve.
+    In order for shanks-tonelli to work, the factor base must contain p such that n is a quadratic residue mod p.
+    Limit the primes found from the sieve of eratosthenes to only those that are quadratic residues.
+    */
+
+   // allocate memory for factor_base
     int* factor_base = malloc(num_primes * sizeof(int));
     if (factor_base == NULL) {
         puts("ERROR: Unable to allocate memory for factor_base.");
         exit(1);
     }
 
+    // Find the size of the factor base
     *factor_base_size = 0;
     for (int i = 0; i < num_primes; i++) {
         if (quadratic_residue(n, primes[i]) == 1) {
@@ -105,8 +119,11 @@ int* get_factor_base(int* primes, int num_primes, mpz_t n, int* factor_base_size
     return factor_base;
 }
 
-// Computes the ceiling of the square root of n
+
 void ceil_sqrt(mpz_t result, const mpz_t n) {
+    /*
+    Computes the ceiling of the square root of n.
+    */
     mpz_init(result);
     mpz_sqrt(result, n);
     if (mpz_perfect_square_p(n) == 0) {  // If n is not a perfect square
@@ -114,6 +131,8 @@ void ceil_sqrt(mpz_t result, const mpz_t n) {
     }
 }
 
+
+// struct to store data local to the threads running get_sieve_log
 typedef struct {
     int start;
     int end;
@@ -123,9 +142,13 @@ typedef struct {
 } ThreadData;
 
 
+
 void* compute_sieve(void* arg) {
+    /*
+    calculates ln((i + root_n)^2 - n) for each thrads given range.
+    */
     ThreadData* data = (ThreadData*)arg;
-    __float128 current = data->start_val;
+    __float128 current = data->start_val; // use __float128 to avoid floating point errors
     for (int i = data->start; i < data->end; i++, current += 1.0) {
         __float128 value = current * current - data->n_double;
         data->sieve[i] = (double) log(value);
@@ -134,9 +157,13 @@ void* compute_sieve(void* arg) {
 }
 
 double* get_sieve_log(int S, mpz_t n) {
-    // puts("Starting get_sieve_log...");
-
-    // root_n = np.float64(np.ceil(math.sqrt(n)))
+    /*
+    Given a bound S, create a list of numbers to sieve.
+    The sieve list is given by ln((i + root_n)^2 - n) for i in range(S).
+    All floats are 64 bit since numpy list compression cant use anything larger.
+    This causes a lot of error to accumulate, so epsilon is used to offset this later.
+    */
+    puts("Starting get_sieve_log...");
     mpz_t root_n_mpz;
     ceil_sqrt(root_n_mpz, n);
     double root_n = mpz_get_d(root_n_mpz);
@@ -150,6 +177,7 @@ double* get_sieve_log(int S, mpz_t n) {
         exit(1);
     }
 
+    // Create threads
     int num_threads = 10;
     pthread_t threads[num_threads];
     ThreadData thread_data[num_threads];
@@ -172,33 +200,16 @@ double* get_sieve_log(int S, mpz_t n) {
     return sieve;
 }
 
-void get_sieve(int S, mpz_t n, GArray* sieve) {
-    // puts("Starting get_sieve...");
-
-    mpz_t root_n_mpz;
-    ceil_sqrt(root_n_mpz, n);
-    double root_n = mpz_get_d(root_n_mpz);
-
-    for (int i = 0; i < S; i++) {
-        mpz_t* b = g_new(mpz_t, 1);
-        mpz_init(*b);
-        mpz_add_ui(*b, root_n_mpz, i);
-        mpz_mul(*b, *b, *b);
-        mpz_sub(*b, *b, n);
-        g_array_append_val(sieve, b);
-    }
-}
 
 void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
-    // calculate the square roots of n mod p
-    // DID THIS https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm
+    /*
+    Standard shanks-tonelli algorithm to find the square roots of n mod p.
+    */
     if (p == 2) {
         *root_mod_p_1 = 1;
         return;
     }
 
-    // TODO: Some of these variables can just be ints, which may improve performance
-    // If we switch over, we would need to implement our own modular exponentiation function using Pingala's algorithm
     mpz_t z, c, t, R, tmp, p_mpz, b;
     mpz_inits(z, c, t, R, tmp, p_mpz, b, NULL);
     mpz_set_ui(p_mpz, p);
@@ -257,49 +268,13 @@ void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
 }
 
 void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, double* log_sieve) {
-    // puts("Starting sieve_primes_log...");
-
-    mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
-    ceil_sqrt(root_n, n);
-    mpz_inits(tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
-
-    for (int i=0; i<factor_base_size; i++) {
-        int p = factor_base[i];
-        mpz_set_ui(p_mpz, p);
-
-        int root_mod_p_1 = -1;
-        int root_mod_p_2 = -1;
-        shanks_tonelli(n, p, &root_mod_p_1, &root_mod_p_2);
-        if (root_mod_p_1 != -1) {
-            // Calculate x = (root_mod_p_1 - root_n) % p
-            mpz_set_ui(root_mod_p_1_mpz, root_mod_p_1);
-            mpz_sub(tmp, root_mod_p_1_mpz, root_n);
-            mpz_mod(tmp, tmp, p_mpz);
-            int x = mpz_get_si(tmp);
-
-            for (int j=x; j<S; j+=p) {
-                log_sieve[j] -= log(p);
-            }
-        }
-        if (root_mod_p_2 != -1) {
-            // Calculate x = (root_mod_p_2 - root_n) % p
-            mpz_set_ui(root_mod_p_2_mpz, root_mod_p_2);
-            mpz_sub(tmp, root_mod_p_2_mpz, root_n);
-            mpz_mod(tmp, tmp, p_mpz);
-            int x = mpz_get_si(tmp);
-
-            for (int j=x; j<S; j+=p) {
-                log_sieve[j] -= log(p);
-            }
-        }
-    }
-
-    mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
-}
-
-void sieve_primes(mpz_t n, int* factor_base, int factor_base_size, int S, GArray* log_sieve) {
-    // puts("Starting sieve_primes...");
-
+    /*
+    Sieve the numbers in the sieve that are divisible by primes in the factor base.
+    Shanks-tonelli is used to find the square roots of n mod p and solutions to this
+    are used to find the numbers in the sieve that are divisible by p in the sieve.
+    All values in the sieve that are about 0 after this process are B-smooth.
+    */
+    puts("Starting sieve_primes_log...");
     mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
     ceil_sqrt(root_n, n);
     mpz_inits(tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
@@ -316,37 +291,30 @@ void sieve_primes(mpz_t n, int* factor_base, int factor_base_size, int S, GArray
             mpz_sub(tmp, root_mod_p_1_mpz, root_n);
             mpz_mod(tmp, tmp, p_mpz);
             int x = mpz_get_si(tmp);
-
-            mpz_t p_mpz;
             for (int j=x; j<S; j+=p) {
-                //divide index j by p
-                mpz_t* value = g_array_index(log_sieve, mpz_t*, j);
-                mpz_init_set_ui(p_mpz, p);
-                mpz_divexact(*value, *value, p_mpz);
+                log_sieve[j] -= log(p);
             }
-            mpz_clear(p_mpz);
         }
         if (root_mod_p_2 != -1) {
-            // Calculate x = (root_mod_p_2 - root_n) % p
             mpz_set_ui(root_mod_p_2_mpz, root_mod_p_2);
             mpz_sub(tmp, root_mod_p_2_mpz, root_n);
             mpz_mod(tmp, tmp, p_mpz);
             int x = mpz_get_si(tmp);
-
             for (int j=x; j<S; j+=p) {
-                //divide index j by p
-                mpz_t* value = g_array_index(log_sieve, mpz_t*, j);
-                mpz_init_set_ui(p_mpz, p);
-                mpz_divexact(*value, *value, p_mpz);
+                log_sieve[j] -= log(p);
             }
         }
     }
 
     mpz_clears(root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz, NULL);
 }
+
 
 void get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, GArray* factors) {
-    // trial division to find the factors of b
+    /*
+    The sieve process does not find the factors of b, only that b is B-smooth.
+    This function finds the factors of b that are in the factor base using trial division.
+    */
     for (int i = 0; i < factor_base_size; i++) {
         int p = factor_base[i];
         while (mpz_divisible_ui_p(b, p) != 0 && mpz_cmp_ui(b, 0) != 0) {
@@ -357,6 +325,9 @@ void get_B_smooth_factors(mpz_t b, int* factor_base, int factor_base_size, GArra
 }
 
 void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
+    /*
+    Calculates b
+    */
     mpz_set_si(b, i);
     mpz_add(b, b, root_n);
 
@@ -368,7 +339,10 @@ void compute_b(mpz_t b, int i, mpz_t root_n, mpz_t n) {
 }
 
 void get_factor_vector(GArray* factors, int* factor_base, int factor_base_size, int* exponent_vector) {
-    // create a vector of the exponents of the factors in the factor base
+    /*
+    Creates the exponent vector for the factors of b in the factor base.
+    The exponent vector is given as the number of times each factor in the factor base divides b.
+    */
     GHashTable* lookup_factor_index = g_hash_table_new(NULL, NULL);
     for (int i=0; i<factor_base_size; i++) {
         g_hash_table_insert(lookup_factor_index, GINT_TO_POINTER(factor_base[i]), GINT_TO_POINTER(i));
@@ -384,15 +358,18 @@ void get_factor_vector(GArray* factors, int* factor_base, int factor_base_size, 
 }
 
 void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
-    // puts("Starting create_matrix_log...");
+    /*
+    Creates the matrix mod 2 for finding dependencies in the sieve.
+    The matrix is created by finding the B-smooth numbers in the sieve and creating the exponent vectors for each a value.
+    The goal is to have a matrix with more rows than columns to find linear dependencies.
+    */
+    puts("Starting create_matrix_log...");
 
     double epsilon = 0.0001;
-
     mpz_t b;
     mpz_init(b);
 
     for (int i=0; i<sieve_size; i++) {
-        // TODO: Can do this in an earlier step
         if (sieve[i] < epsilon) {
             compute_b(b, i, root_n, n);
             GArray* factors = g_array_new(FALSE, FALSE, sizeof(int));
@@ -424,16 +401,13 @@ void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_
                 continue;
             }
 
-            // matrix.append(exponent_vector_mod_2)
             g_array_append_val(matrix, exponent_vector_mod_2);
 
-            // as_vector.append(i + root_n)
             mpz_t* i_plus_root_n = g_new(mpz_t, 1);
             mpz_init(*i_plus_root_n);
             mpz_add_ui(*i_plus_root_n, root_n, i);
             g_array_append_val(as_vector, i_plus_root_n);
 
-            // factor_exponent_dict[i + root_n] = exponent_vector
             char* key_str = mpz_get_str(NULL, 10, *i_plus_root_n);
             g_hash_table_insert(factor_exponent_dict, key_str, exponent_vector);
 
@@ -448,105 +422,48 @@ void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_
     mpz_clear(b);
 }
 
-void create_matrix(GArray* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
-    // puts("Starting create_matrix...");
-
-    mpz_t b;
-    mpz_init(b);
-
-    for (int i=0; i<sieve_size; i++) {
-        // TODO: Can do this in an earlier step
-        mpz_t* val = g_array_index(sieve, mpz_t*, i);
-        if (mpz_cmp_ui(*val, 1) == 0) {
-            compute_b(b, i, root_n, n);
-            GArray* factors = g_array_new(FALSE, FALSE, sizeof(int));
-            if (factors == NULL) {
-                puts("ERROR: Unable to allocate GArray for factors.");
-                exit(1);
-            }
-            get_B_smooth_factors(b, factor_base, factor_base_size, factors);
-
-            int* exponent_vector = calloc(factor_base_size, sizeof(int));
-            if (exponent_vector == NULL) {
-                puts("ERROR: Unable to allocate memory for exponent_vector.");
-                exit(1);
-            }
-            get_factor_vector(factors, factor_base, factor_base_size, exponent_vector);
-
-            bool* exponent_vector_mod_2 = malloc(factor_base_size * sizeof(bool));
-            if (exponent_vector_mod_2 == NULL) {
-                puts("ERROR: Unable to allocate memory for exponent_vector_mod_2.");
-                exit(1);
-            }
-            int sum = 0;
-            for (int j=0; j<factor_base_size; j++) {
-                int mod_2 = exponent_vector[j] % 2;
-                sum += mod_2;
-                exponent_vector_mod_2[j] = mod_2;
-            }
-            if (sum == 0) {
-                continue;
-            }
-
-            // matrix.append(exponent_vector_mod_2)
-            g_array_append_val(matrix, exponent_vector_mod_2);
-
-            // as_vector.append(i + root_n)
-            mpz_t* i_plus_root_n = g_new(mpz_t, 1);
-            mpz_init(*i_plus_root_n);
-            mpz_add_ui(*i_plus_root_n, root_n, i);
-            g_array_append_val(as_vector, i_plus_root_n);
-
-            // factor_exponent_dict[i + root_n] = exponent_vector
-            char* key_str = mpz_get_str(NULL, 10, *i_plus_root_n);
-            g_hash_table_insert(factor_exponent_dict, key_str, exponent_vector);
-
-            if (matrix->len >= 2*factor_base_size) {
-                break;
-            }
-
-            g_array_free(factors, TRUE);
-        }
-    }
-
-    mpz_clear(b);
-}
 
 void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_base_size) {
-    // puts("Starting find_linear_dependencies...");
-
-    // find the linear dependencies in the matrix
-    // follows this paper https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
+    /*
+    Finds the linear dependencies in the matrix using gaussian elimination mod 2.
+    Follows the algorithm presented in this paper: https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
+    */
+    puts("Starting find_linear_dependencies...");
 
     int n = matrix->len;
     int m = factor_base_size;
 
-    // marks = np.zeros(n, dtype=bool)
     bool* marks = calloc(n, sizeof(bool));
     if (marks == NULL) {
         puts("ERROR: Unable to allocate memory for marks.");
         exit(1);
     }
 
+    /*
+    algorithm presented in the paper:
+    1. Search for Aij = 1 in column j
+    2. If found then mark row i as an independent row
+    3. For all other columns k != j, if Akj = 1, then xor column k with column j
+    4. repeat for all columns
+    */
     for (int i = 0; i < m; i++) {
         int piv = -1;
         for (int j = 0; j < n; j++) {
             bool* row = g_array_index(matrix, bool*, j);
-            if (row[i] == 1) { // matrix[j][i] == 1
+            if (row[i] == 1) { 
                 marks[j] = true;
                 piv = j;
                 break;
             }
         }
-
         if (piv != -1) {
             bool* pivotRow = g_array_index(matrix, bool*, piv);
             for (int k=0; k<m; k++) {
-                if (k != i && pivotRow[k] == 1) { // matrix[piv][k] == 1
+                if (k != i && pivotRow[k] == 1) { 
                     for (int j=0; j<n; j++) {
                         bool* row = g_array_index(matrix, bool*, j);
-                        if (row[i] == 1) { // If matrix[j][i] == 1,
-                            row[k] = row[k] ^ 1; // Flip matrix[j][k]
+                        if (row[i] == 1) { 
+                            row[k] = row[k] ^ 1;
                         }
                     }
                 }
@@ -554,6 +471,10 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
         }
     }
 
+    /*
+    All unmarked rows are dependent on the marked rows
+    loop through all unmarked rows and create a list of rows that the unmarked row is dependent on
+    */
     for (int i = 0; i < n; i++) {
         if (!marks[i]) {
             GArray* dependent_list = g_array_new(FALSE, FALSE, sizeof(int));
@@ -561,9 +482,9 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
             bool* row = g_array_index(matrix, bool*, i);
             
             for (int j = 0; j < m; j++) {
-                if (row[j] == 1) {  // matrix[i][j] == 1
+                if (row[j] == 1) {  
                     for (int k = 0; k < n; k++) {
-                        if (g_array_index(matrix, bool*, k)[j] == 1) {  // matrix[k][j] == 1
+                        if (g_array_index(matrix, bool*, k)[j] == 1) {  
                             g_array_append_val(dependent_list, k);
                             break;
                         }
@@ -577,7 +498,11 @@ void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_b
     free(marks);
 }
 
+
 void calculate_as_product(GArray* dependencies, GArray* exponent_as, mpz_t as_product) {
+    /*
+    Calculates the product of the as for (a1...an)^2 = (p1^e1...pn^en)^2 mod n.
+    */
     mpz_set_ui(as_product, 1);
     for (int i = 0; i < dependencies->len; i++) {
         int row = g_array_index(dependencies, int, i);
@@ -586,7 +511,11 @@ void calculate_as_product(GArray* dependencies, GArray* exponent_as, mpz_t as_pr
     }
 }
 
+
 void calculate_primes_product(GArray* dependencies, GHashTable* factor_exponent_dict, GArray* as_vector, int* factor_base, int factor_base_size, mpz_t primes_product) {
+    /*
+    Calculates the product of the primes for (a1...an)^2 = (p1^e1...pn^en)^2 mod n.
+    */
     mpz_set_ui(primes_product, 1);
     int* prime_power_vector = calloc(factor_base_size, sizeof(int));
     
@@ -603,7 +532,6 @@ void calculate_primes_product(GArray* dependencies, GHashTable* factor_exponent_
         }
     }
 
-    // prime_power_vector = prime_power_vector // 2
     for (int i = 0; i < factor_base_size; i++) {
         prime_power_vector[i] = prime_power_vector[i] / 2;
     }
@@ -621,7 +549,11 @@ void calculate_primes_product(GArray* dependencies, GHashTable* factor_exponent_
     free(prime_power_vector);
 }
 
+
 void euclidian_algorithm(mpz_t result, mpz_t a, mpz_t b) {
+    /*
+    Finds the greatest common divisor of a and b using the euclidian algorithm.
+    */
     mpz_t current_a, current_b;
     mpz_init_set(current_a, a);
     mpz_init_set(current_b, b);
@@ -647,7 +579,12 @@ void euclidian_algorithm(mpz_t result, mpz_t a, mpz_t b) {
     mpz_clear(current_b);
 }
 
+
 void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* as_vector, GHashTable* factor_exponent_dict, int* factor_base, int factor_base_size, mpz_t n) {
+    /*
+    Returns the factors of n by calculating the product of the as and the product of the primes.
+    Uses the basic principle that given (a1...an)^2 = (p1^e1...pn^en)^2 mod n, then a factor is = gcd(a1...an - p1^e1...pn^en, n).
+    */
     if (dependencies->len == 0) {
         return;
     }
@@ -658,7 +595,6 @@ void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* 
     for(int i = 0; i < dependencies->len; i++) { 
         GArray* dependency = g_array_index(dependencies, GArray*, i);
 
-        
         calculate_as_product(dependency, as_vector, as_product);
         calculate_primes_product(dependency, factor_exponent_dict, as_vector, factor_base, factor_base_size, primes_product);
 
@@ -675,7 +611,11 @@ void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* 
     mpz_clears(as_product, primes_product, f, a, NULL);
 }
 
+
 void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
+    /*
+    Main sieve function for the quadratic sieve.
+    */
 
     // Check to see if n is a perfect square
     if (mpz_perfect_square_p(n) != 0) {
@@ -689,56 +629,41 @@ void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     mpz_init(root_n);
     ceil_sqrt(root_n, n);
 
-    /*
-    primes_under_B = sieve_of_eratosthenes(B)
-    */
+    // Initialize the factor base
     int num_primes_under_B;
     int* primes_under_B = sieve_of_eratosthenes(B, &num_primes_under_B);
-
-    /*
-    factor_base = get_factor_base(primes_under_B, n)
-    */
+    
+    // Get the true factor base
     int factor_base_size;
     int* factor_base = get_factor_base(primes_under_B, num_primes_under_B, n, &factor_base_size);
 
-    /*
-    sieve = get_sieve_log(S, n)
-    */
-    // NOTE: We get slightly different results here than the Python code
-    // This might be due to floating point precision issues
+    // Get the sieve
     double* sieve = get_sieve_log(S, n); // size S
 
-    /*
-    sieve_primes_log(n, factor_base, S, sieve)
-    */
+    // Sieve the primes
     sieve_primes_log(n, factor_base, factor_base_size, S, sieve);
 
-    /*
-    matrix, as_vector, factor_exponent_dict = create_matrix_log(sieve, root_n, factor_base, n)
-    */
+    // Create the matrix
     GArray* matrix = g_array_new(FALSE, FALSE, sizeof(bool*));
     GArray* as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
     GHashTable* factor_exponent_dict = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     create_matrix_log(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
 
+    // Find linear dependencies
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
     printf("Number of dependencies: %d with matrix shape: %d x %d\n", dependencies->len, matrix->len, factor_base_size);
 
-    // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
+    // return factors
     return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
 
-    /*
-    Free memory
-    */
-    // matrix
+    // Free memory
     for (int i = 0; i < matrix->len; i++) {
         free(g_array_index(matrix, bool*, i));
     }
     g_array_free(matrix, TRUE);
 
-    // as_vector
     for (int i = 0; i < as_vector->len; i++) {
         mpz_t* value = g_array_index(as_vector, mpz_t*, i);
         mpz_clear(*value);
@@ -746,7 +671,6 @@ void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     }
     g_array_free(as_vector, TRUE);
 
-    // dependencies
     for (int i = 0; i < dependencies->len; i++) {
         GArray* inner_array = g_array_index(dependencies, GArray*, i);
         g_array_free(inner_array, TRUE);
@@ -761,84 +685,6 @@ void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     mpz_clear(root_n);
 }
 
-void sieve_int(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
-    /*
-    root_n = math.ceil(math.sqrt(n))
-    */
-    mpz_t root_n;
-    mpz_init(root_n);
-    ceil_sqrt(root_n, n);
-
-    /*
-    primes_under_B = sieve_of_eratosthenes(B)
-    */
-    int num_primes_under_B;
-    int* primes_under_B = sieve_of_eratosthenes(B, &num_primes_under_B);
-
-    /*
-    factor_base = get_factor_base(primes_under_B, n)
-    */
-    int factor_base_size;
-    int* factor_base = get_factor_base(primes_under_B, num_primes_under_B, n, &factor_base_size);
-
-    /*
-    sieve = get_sieve_log(S, n)
-    */
-    // NOTE: We get slightly different results here than the Python code
-    // This might be due to floating point precision issues
-    GArray* sieve = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
-    get_sieve(S, n, sieve); // size S
-
-    /*
-    sieve_primes_log(n, factor_base, S, sieve)
-    */
-    sieve_primes(n, factor_base, factor_base_size, S, sieve);
-
-    /*
-    matrix, as_vector, factor_exponent_dict = create_matrix_log(sieve, root_n, factor_base, n)
-    */
-    GArray* matrix = g_array_new(FALSE, FALSE, sizeof(bool*));
-    GArray* as_vector = g_array_new(FALSE, FALSE, sizeof(mpz_t*));
-    GHashTable* factor_exponent_dict = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
-    create_matrix(sieve, S, root_n, factor_base, factor_base_size, n, matrix, as_vector, factor_exponent_dict);
-
-    GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
-    find_linear_dependencies(dependencies, matrix, factor_base_size);
-
-    // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
-    return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
-
-    /*
-    Free memory
-    */
-    // matrix
-    for (int i = 0; i < matrix->len; i++) {
-        free(g_array_index(matrix, bool*, i));
-    }
-    g_array_free(matrix, TRUE);
-
-    // as_vector
-    for (int i = 0; i < as_vector->len; i++) {
-        mpz_t* value = g_array_index(as_vector, mpz_t*, i);
-        mpz_clear(*value);
-        g_free(value);
-    }
-    g_array_free(as_vector, TRUE);
-
-    // dependencies
-    for (int i = 0; i < dependencies->len; i++) {
-        GArray* inner_array = g_array_index(dependencies, GArray*, i);
-        g_array_free(inner_array, TRUE);
-    }
-    g_array_free(dependencies, TRUE);
-
-    g_hash_table_destroy(factor_exponent_dict);
-
-    free(primes_under_B);
-    free(factor_base);
-    free(sieve);
-    mpz_clear(root_n);
-}
 
 int main(int argc, char* argv[]) {
     // Initialization
