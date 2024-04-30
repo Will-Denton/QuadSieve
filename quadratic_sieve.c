@@ -134,7 +134,7 @@ void* compute_sieve(void* arg) {
 }
 
 double* get_sieve_log(int S, mpz_t n) {
-    puts("Starting get_sieve_log...");
+    // puts("Starting get_sieve_log...");
 
     // root_n = np.float64(np.ceil(math.sqrt(n)))
     mpz_t root_n_mpz;
@@ -150,7 +150,7 @@ double* get_sieve_log(int S, mpz_t n) {
         exit(1);
     }
 
-    int num_threads = 8;
+    int num_threads = 10;
     pthread_t threads[num_threads];
     ThreadData thread_data[num_threads];
     int length_per_thread = S / num_threads;
@@ -173,7 +173,7 @@ double* get_sieve_log(int S, mpz_t n) {
 }
 
 void get_sieve(int S, mpz_t n, GArray* sieve) {
-    puts("Starting get_sieve...");
+    // puts("Starting get_sieve...");
 
     mpz_t root_n_mpz;
     ceil_sqrt(root_n_mpz, n);
@@ -257,7 +257,7 @@ void shanks_tonelli(mpz_t n, int p, int *root_mod_p_1, int *root_mod_p_2) {
 }
 
 void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, double* log_sieve) {
-    puts("Starting sieve_primes_log...");
+    // puts("Starting sieve_primes_log...");
 
     mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
     ceil_sqrt(root_n, n);
@@ -298,7 +298,7 @@ void sieve_primes_log(mpz_t n, int* factor_base, int factor_base_size, int S, do
 }
 
 void sieve_primes(mpz_t n, int* factor_base, int factor_base_size, int S, GArray* log_sieve) {
-    puts("Starting sieve_primes...");
+    // puts("Starting sieve_primes...");
 
     mpz_t root_n, tmp, p_mpz, root_mod_p_1_mpz, root_mod_p_2_mpz;
     ceil_sqrt(root_n, n);
@@ -384,7 +384,7 @@ void get_factor_vector(GArray* factors, int* factor_base, int factor_base_size, 
 }
 
 void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
-    puts("Starting create_matrix_log...");
+    // puts("Starting create_matrix_log...");
 
     double epsilon = 0.0001;
 
@@ -449,7 +449,7 @@ void create_matrix_log(double* sieve, int sieve_size, mpz_t root_n, int* factor_
 }
 
 void create_matrix(GArray* sieve, int sieve_size, mpz_t root_n, int* factor_base, int factor_base_size, mpz_t n, GArray* matrix, GArray* as_vector, GHashTable* factor_exponent_dict) {
-    puts("Starting create_matrix...");
+    // puts("Starting create_matrix...");
 
     mpz_t b;
     mpz_init(b);
@@ -513,7 +513,7 @@ void create_matrix(GArray* sieve, int sieve_size, mpz_t root_n, int* factor_base
 }
 
 void find_linear_dependencies(GArray* dependencies, GArray* matrix, int factor_base_size) {
-    puts("Starting find_linear_dependencies...");
+    // puts("Starting find_linear_dependencies...");
 
     // find the linear dependencies in the matrix
     // follows this paper https://www.cs.umd.edu/~gasarch/TOPICS/factoring/fastgauss.pdf
@@ -718,7 +718,7 @@ void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     GArray* dependencies = g_array_new(FALSE, FALSE, sizeof(GArray*));
     find_linear_dependencies(dependencies, matrix, factor_base_size);
 
-    printf("Number of dependencies: %d\n with matrix shape: %d x %d\n", dependencies->len, matrix->len, factor_base_size);
+    printf("Number of dependencies: %d with matrix shape: %d x %d\n", dependencies->len, matrix->len, factor_base_size);
 
     // return return_factors(dependencies, as_vector, factor_exponent_dict, factor_base, n)
     return_factors(factor1, factor2, dependencies, as_vector, factor_exponent_dict, factor_base, factor_base_size, n);
@@ -838,25 +838,60 @@ int main() {
     mpz_t n;
     mpz_init(n);
 
-    // mpz_set_str(n, "16", 10); // base 10
-    // int B = 2000;
-    // int S = 4000000;
+    // mpz_set_str(n, "130607", 10); // base 10
+    // int B = 50;
+    // int S = 1000;
 
-    // mpz_set_str(n, "8874250803582746783070560681", 10); // base 10
+    // mpz_set_str(n, "29223973", 10); // base 10
+    // int B = 200;
+    // int S = 15000;
+
+    // mpz_set_str(n, "7067947793", 10); // base 10
+    // int B = 500;
+    // int S = 10000;
+
+    // mpz_set_str(n, "736055622283", 10); // base 10
+    // int B = 600;
+    // int S = 10000;
+
+    // mpz_set_str(n, "5479839591439397", 10); // base 10
+    // int B = 1000;
+    // int S = 300000;
+
+    // mpz_set_str(n, "92905709270744788219", 10); // base 10
+    // int B = 1500;
+    // int S = 370000;
+
+    // mpz_set_str(n, "60381558672724747724459", 10); // base 10
+    // int B = 2500;
+    // int S = 1500000;
+
+    // mpz_set_str(n, "4212175936999023767107554923", 10); // base 10
+    // int B = 5000;
+    // int S = 25000000;
+    
+    // mpz_set_str(n, "6119490005682428418384261292866412370269", 10); // base 10
+    // int B = 30000;
+    // int S = 1500000000;
+
+
+    // sheet numbers below
+
+    // mpz_set_str(n, "16921456439215439701", 10); // base 10
+    // int B = 1500;
+    // int S = 370000;
+
+    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
     // int B = 15000;
     // int S = 15000000;
 
-    mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    int B = 15000;
-    int S = 15000000;
-
     // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
     // int B = 30000;
-    // int S = 1000000000;
+    // int S = 1500000000;
 
     // mpz_set_str(n, "3744843080529615909019181510330554205500926021947", 10); // base 10
-    // int B = 5000;
-    // int S = 3000000000;
+    // int B = 50000;
+    // int S = 2000000000;
 
     // Nontrivial factors of n
     mpz_t factor1;
@@ -864,7 +899,10 @@ int main() {
     mpz_t factor2;
     mpz_init(factor2);
 
-    puts("SIEVEING:");
+    // time in ms timer
+    clock_t start, end;
+    start = clock();
+    // puts("SIEVEING:");
 
     if (mpz_perfect_square_p(n) != 0) {
         gmp_printf("n: %Zd is a perfect square.\n", n);
@@ -874,6 +912,9 @@ int main() {
         sieve_log(n, B, S, factor1, factor2);
     }
 
+    end = clock();
+    double time_taken = ((double)end - start) / CLOCKS_PER_SEC * 1000;
+    printf("Time taken: %f ms\n", time_taken);
     gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
     // Clear memory
