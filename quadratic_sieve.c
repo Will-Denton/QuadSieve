@@ -676,9 +676,15 @@ void return_factors(mpz_t factor1, mpz_t factor2, GArray* dependencies, GArray* 
 }
 
 void sieve_log(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
-    /*
-    root_n = math.ceil(math.sqrt(n))
-    */
+
+    // Check to see if n is a perfect square
+    if (mpz_perfect_square_p(n) != 0) {
+        gmp_printf("n: %Zd is a perfect square.\n", n);
+        mpz_sqrt(factor1, n);
+        mpz_set(factor2, factor1);
+        return;
+    }
+
     mpz_t root_n;
     mpz_init(root_n);
     ceil_sqrt(root_n, n);
@@ -834,90 +840,46 @@ void sieve_int(mpz_t n, int B, int S, mpz_t factor1, mpz_t factor2) {
     mpz_clear(root_n);
 }
 
-int main() {
-    mpz_t n;
+int main(int argc, char* argv[]) {
+    // Initialization
+    mpz_t n, factor1, factor2;
+    int B, S;
     mpz_init(n);
-
-    // mpz_set_str(n, "130607", 10); // base 10
-    // int B = 50;
-    // int S = 1000;
-
-    // mpz_set_str(n, "29223973", 10); // base 10
-    // int B = 200;
-    // int S = 15000;
-
-    // mpz_set_str(n, "7067947793", 10); // base 10
-    // int B = 500;
-    // int S = 10000;
-
-    // mpz_set_str(n, "736055622283", 10); // base 10
-    // int B = 600;
-    // int S = 10000;
-
-    // mpz_set_str(n, "5479839591439397", 10); // base 10
-    // int B = 1000;
-    // int S = 300000;
-
-    // mpz_set_str(n, "92905709270744788219", 10); // base 10
-    // int B = 1500;
-    // int S = 370000;
-
-    // mpz_set_str(n, "60381558672724747724459", 10); // base 10
-    // int B = 2500;
-    // int S = 1500000;
-
-    // mpz_set_str(n, "4212175936999023767107554923", 10); // base 10
-    // int B = 5000;
-    // int S = 25000000;
-    
-    // mpz_set_str(n, "6119490005682428418384261292866412370269", 10); // base 10
-    // int B = 30000;
-    // int S = 1500000000;
-
-
-    // sheet numbers below
-
-    // mpz_set_str(n, "16921456439215439701", 10); // base 10
-    // int B = 1500;
-    // int S = 370000;
-
-    // mpz_set_str(n, "46839566299936919234246726809", 10); // base 10
-    // int B = 15000;
-    // int S = 15000000;
-
-    // mpz_set_str(n, "6172835808641975203638304919691358469663", 10); // base 10
-    // int B = 30000;
-    // int S = 1500000000;
-
-    // mpz_set_str(n, "3744843080529615909019181510330554205500926021947", 10); // base 10
-    // int B = 50000;
-    // int S = 2000000000;
-
-    // Nontrivial factors of n
-    mpz_t factor1;
     mpz_init(factor1);
-    mpz_t factor2;
     mpz_init(factor2);
 
-    // time in ms timer
+    // Commandline argument parsing: ./quadratic_sieve <number to factor> <B> <S>
+    if(argc != 4) {
+        puts("Usage: ./quadratic_sieve <number to factor> <B> <S>");
+        exit(1);
+    } else {
+        if(mpz_set_str(n, argv[1], 10) != 0) {
+            puts("ERROR: Unable to parse number.");
+            exit(1);
+        }
+        B = atoi(argv[2]);
+        S = atoi(argv[3]);
+        if (B <= 0 || S <= 0) {
+            puts("ERROR: B and S must be positive integers.");
+            exit(1);
+        }
+    }
+
+    gmp_printf("Starting sieve with n: %Zd, B: %d, S: %d\n", n, B, S);
+
+    // Run and time the quadratic sieve
     clock_t start, end;
     start = clock();
-    // puts("SIEVEING:");
 
-    if (mpz_perfect_square_p(n) != 0) {
-        gmp_printf("n: %Zd is a perfect square.\n", n);
-        mpz_sqrt(factor1, n);
-        mpz_set(factor2, factor1);
-    } else {
-        sieve_log(n, B, S, factor1, factor2);
-    }
+    sieve_log(n, B, S, factor1, factor2);
 
     end = clock();
     double time_taken = ((double)end - start) / CLOCKS_PER_SEC * 1000;
-    printf("Time taken: %f ms\n", time_taken);
-    gmp_printf("n: %Zd, factors: (%Zd, %Zd)\n", n, factor1, factor2);
 
-    // Clear memory
+    printf("Time taken: %f ms\n", time_taken);
+    gmp_printf("%Zd has factors: (%Zd, %Zd)\n", n, factor1, factor2);
+
+    // Cleanup
     mpz_clear(n);
     mpz_clear(factor1);
     mpz_clear(factor2);
